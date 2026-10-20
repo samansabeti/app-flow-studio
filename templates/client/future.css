@@ -1,0 +1,19 @@
+/* Editable proposal placeholders, independent from the Existing audit scaffold. */
+.phone .client-future, .phone .proposal-specimen { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; color: var(--app-ink); }
+.phone .client-future { display: flex; flex-direction: column; height: 100%; padding: 28px 24px 24px; background: var(--app-background); }
+.phone .proposal-wordmark { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.phone .proposal-wordmark > span { flex: none; padding: 5px 8px; border-radius: 6px; background: var(--app-accent-soft); color: var(--app-accent); font-size: 10px; font-weight: 500; }
+.phone .proposal-main { margin-top: 40px; min-height: 0; }
+.phone .proposal-label { display: block; font-size: 10px; line-height: 15px; font-weight: 600; letter-spacing: .7px; text-transform: uppercase; color: var(--app-muted); }
+.phone .client-future h1 { margin: 14px 0 0; font-size: 32px; line-height: 1.15; letter-spacing: -.8px; font-weight: 600; }
+.phone .client-future p, .phone .proposal-specimen p { margin: 16px 0 0; color: var(--app-muted); font-size: 14px; line-height: 22px; }
+.phone .proposal-outcome { margin-top: 32px; padding: 20px; border: 1px solid var(--app-border); border-radius: 14px; background: var(--app-surface); }
+.phone .proposal-outcome strong { display: block; margin-top: 8px; font-size: 16px; line-height: 22px; font-weight: 600; }
+.phone .proposal-outcome p { margin-top: 8px; }
+.phone .proposal-note { margin-top: 32px; padding: 20px; border-radius: 14px; background: var(--app-accent-soft); color: var(--app-accent); font-size: 14px; line-height: 22px; }
+.phone .proposal-footer { flex: none; margin-top: auto; padding-top: 24px; }
+.phone .proposal-button { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 50px; padding: 12px 18px; border: 0; border-radius: 12px; background: var(--app-accent); color: var(--app-on-accent); font-family: inherit; font-size: 14px; line-height: 20px; font-weight: 600; }
+.phone .proposal-back { align-self: flex-start; margin-top: 28px; padding: 6px 0; border: 0; background: transparent; color: var(--app-accent); font-family: inherit; font-size: 13px; }
+.phone .proposal-back + .proposal-main { margin-top: 28px; }
+.phone .proposal-specimen .proposal-outcome { margin-top: 0; }
+.phone .client-future button:focus-visible, .phone .proposal-specimen button:focus-visible { outline: 3px solid var(--app-accent); outline-offset: 3px; }

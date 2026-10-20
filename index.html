@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="A local workspace for app screens, flows, and design libraries.">
+  <title>App Flow Studio</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23212121'/%3E%3Cpath d='M9 9h5v5H9zm9 0h5v5h-5zM9 18h5v5H9zm9 0h5v5h-5z' fill='%23ffffff'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="studio.css">
+  <link rel="stylesheet" href="app.css">
+  <link id="app-stylesheet" rel="stylesheet" disabled>
+  <script type="module" src="studio.js"></script>
+</head>
+<body>
+  <div id="workspace">
+    <aside class="sidebar" aria-label="Workspace navigation">
+      <button id="studio-brand" class="studio-brand" data-view="screens">App Flow Studio</button>
+      <label id="app-picker-label" class="app-picker-label" for="app-picker">App</label>
+      <select id="app-picker" aria-label="Choose app"></select>
+      <nav class="view-nav" aria-label="App views">
+        <button data-view="overview" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8m-8 4h8m-8 4h5"/></svg>Overview</button>
+        <div class="screens-nav-group">
+        <button data-view="screens" class="active"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="18" rx="1.5"/></svg>Screens</button>
+        <div id="board-subnav" class="board-subnav"><div class="sidebar-label">Boards</div><nav id="board-nav" class="board-nav" aria-label="Screen boards"></nav></div>
+        </div>
+        <button data-view="map"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M6 8v8a2 2 0 0 0 2 2h7m-3-3 3 3-3 3"/></svg>Flow map</button>
+        <button data-view="library"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="5" height="16" rx="1"/><path d="M12 4v16m4-16 5 15"/></svg>Design library</button>
+      </nav>
+      <div class="sidebar-bottom"><button id="studio-theme" class="text-button" aria-label="Switch studio to dark appearance"><span aria-hidden="true">◐</span> Studio appearance</button></div>
+    </aside>
+    <div class="workspace-body">
+      <header class="workspace-bar">
+        <div class="workspace-heading"><div class="workspace-title"><div class="breadcrumb"><span id="workspace-studio-name" class="workspace-studio-name">App Flow Studio</span><span id="breadcrumb-separator" aria-hidden="true">/</span><strong id="breadcrumb-app"></strong></div><p id="workspace-subtitle" class="workspace-subtitle" hidden></p></div><div id="app-variant" class="state-toggle" role="group" aria-label="Design state" hidden></div></div>
+        <div class="bar-actions"><label class="preview-theme" id="app-theme-label" for="app-theme">App appearance</label><select id="app-theme"><option value="light">Light</option><option value="dark">Dark</option></select></div>
+      </header>
+      <main id="main-content"><div id="view-content"></div></main>
+    </div>
+  </div>
+  <dialog id="focus" aria-labelledby="focus-title">
+    <div class="focus-toolbar"><button id="close-focus" class="text-button">← Back to screens</button><div class="focus-heading"><strong id="focus-title"></strong><span id="focus-position"></span></div><div class="focus-paging"><button id="previous-card" class="icon-button" aria-label="Previous step">←</button><button id="next-card" class="icon-button" aria-label="Next step">→</button><button id="toggle-immersive" class="text-button" aria-label="Enter full screen" title="Full screen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg><span>Full screen</span></button></div></div>
+    <div class="focus-layout">
+      <section class="live-preview" aria-label="Interactive prototype"><div class="live-caption" id="preview-caption">Prototype</div><div class="live-device"><div id="live-phone" class="phone"></div></div><div class="device-controls"><button id="prototype-back" class="text-button">← App back</button><button id="reset" class="text-button">↻ Reset</button><button id="toggle-details" class="text-button" aria-expanded="false" aria-controls="context-sheet">ⓘ Details</button></div></section>
+      <button id="details-backdrop" aria-label="Close screen details" tabindex="-1" hidden></button>
+      <aside id="context-sheet" class="context-sheet" aria-label="Screen details"><div class="context-sheet-bar"><strong>Screen details</strong><button id="close-details" class="text-button">Done</button></div><div id="context" class="context-panel" aria-label="State specification"></div></aside>
+    </div>
+    <div class="focus-footer"><div class="mobile-step-nav"><button id="mobile-previous" class="icon-button" aria-label="Previous step">←</button><div id="step-gesture"><strong id="mobile-step-position"></strong><span>Swipe to browse steps</span></div><button id="mobile-next" class="icon-button" aria-label="Next step">→</button></div><div class="keyboard-hint"><kbd>←</kbd><kbd>→</kbd> browse <span>·</span> <kbd>Esc</kbd> close <span>·</span> <kbd>R</kbd> reset</div></div>
+    <button id="exit-immersive" class="text-button" hidden aria-label="Exit full screen">↙ <span>Exit full screen</span></button>
+    <div id="studio-announcement" class="sr-only" aria-live="polite"></div>
+  </dialog>
+</body>
+</html>

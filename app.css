@@ -1,0 +1,184 @@
+/* Neutral mobile primitives and the Daylight example. All colors use app tokens. */
+.phone { --app-serif: Georgia, 'Times New Roman', serif; color: var(--app-ink); background: var(--app-background); font: 14px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.phone *, .phone *::before, .phone *::after { box-sizing: border-box; }
+.phone button, .phone input, .phone select { font: inherit; }
+.phone button { cursor: pointer; color: inherit; -webkit-tap-highlight-color: transparent; }
+.phone button:disabled { cursor: default; }
+.phone button:focus-visible, .phone input:focus-visible, .phone select:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 3px; }
+.phone button svg, .phone svg { flex-shrink: 0; }
+.phone h1, .phone h2, .phone h3, .phone p { margin: 0; }
+.phone .app-screen { width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--app-background); }
+.phone .app-scroll { min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: none; flex: 1; }
+.phone .app-scroll::-webkit-scrollbar { display: none; }
+.phone h1 { font: 38px/1.09 var(--app-serif); letter-spacing: -1.8px; font-weight: 400; }
+.phone h1 em { font-weight: 400; }
+.phone h2 { font: 26px/1.15 var(--app-serif); letter-spacing: -.6px; font-weight: 400; }
+.phone .app-eyebrow { font-size: 9px; font-weight: 650; letter-spacing: 1.8px; line-height: 1.4; }
+.phone .app-intro { color: var(--app-muted); font-size: 13px; line-height: 1.65; margin-top: 15px; }
+.phone .app-button { min-height: 50px; border: 0; border-radius: 14px; display: flex; width: 100%; align-items: center; justify-content: center; gap: 10px; padding: 12px 18px; font-size: 13px; font-weight: 550; transition: opacity .15s, transform .15s; }
+.phone .app-button:active:not(:disabled) { transform: scale(.98); }
+.phone .app-button-primary, .phone .app-button.primary { color: var(--app-on-accent); background: var(--app-accent); }
+.phone .app-button-secondary { background: var(--app-accent-soft); color: var(--app-ink); }
+.phone .app-button-danger { background: var(--app-danger); color: var(--app-background); }
+.phone .app-button:disabled { opacity: .6; }
+.phone .app-library-stack { display: grid; gap: 10px; }
+.phone .app-icon-button { height: 36px; width: 36px; padding: 0; border: 1px solid var(--app-border); background: transparent; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.phone .app-icon-button:hover { background: var(--app-accent-soft); }
+.phone .app-header { display: flex; justify-content: space-between; align-items: center; min-height: 65px; padding: 9px 22px 13px; font-size: 12px; font-weight: 550; }
+.phone .app-header-spacer { width: 36px; }
+.phone .app-grow { flex: 1; min-height: 10px; }
+.phone .app-subtle-note { text-align: center; color: var(--app-muted); font-size: 10px; line-height: 1.6; }
+.phone .app-mini-tag { font-size: 8px; letter-spacing: 1px; font-weight: 600; border: 1px solid var(--app-border); padding: 5px 7px; border-radius: 5px; }
+.phone .app-tabbar { display: flex; gap: 56px; align-items: center; justify-content: center; height: 65px; flex-shrink: 0; border-top: 1px solid var(--app-border); margin: 0 22px; }
+.phone .app-tabbar button { border: none; background: none; display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--app-muted); font-size: 9px; padding: 8px 22px; }
+.phone .app-tabbar button.is-active { color: var(--app-ink); font-weight: 600; }
+.phone .app-tabbar button.is-active svg { fill: var(--app-accent-soft); }
+.phone .app-empty { text-align: center; padding: 25px 7px 12px; }
+.phone .app-empty-symbol { background: var(--app-accent-soft); border: 1px solid var(--app-border); width: 76px; height: 76px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 22px; }
+.phone .app-empty .app-eyebrow { margin-bottom: 11px; }
+.phone .app-empty h2 { font-size: 31px; line-height: 1.12; max-width: 245px; margin: auto; }
+.phone .app-empty > p:not(.app-eyebrow) { max-width: 240px; margin: 16px auto 24px; color: var(--app-muted); line-height: 1.7; font-size: 12px; }
+.phone .app-field { display: flex; flex-direction: column; gap: 9px; margin-top: 24px; text-align: left; font-size: 11px; font-weight: 550; }
+.phone .app-field input, .phone .app-field select { width: 100%; appearance: none; color: var(--app-ink); background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 11px; padding: 14px 13px; min-height: 47px; font-size: 12px; font-weight: 400; }
+.phone .app-field input::placeholder { color: var(--app-muted); opacity: .85; }
+.phone .app-field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23777f78' stroke-width='1.5'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
+.phone .app-field [aria-invalid='true'] { border-color: var(--app-danger); }
+.phone .app-field-error { color: var(--app-danger); font-size: 10px; font-weight: 400; }
+.phone .app-form { padding: 14px 26px 18px; display: flex; flex-direction: column; }
+.phone .app-form h1 { margin-top: 13px; font-size: 34px; }
+.phone .app-form .app-intro { margin-top: 12px; font-size: 11px; }
+.phone .app-form fieldset { border: none; padding: 0; margin: 0; }
+.phone .app-form fieldset:disabled { opacity: .65; }
+.phone .app-form-footer { margin-top: auto; padding-top: 25px; }
+.phone .app-form-footer > .app-subtle-note { margin-bottom: 14px; }
+.phone .app-saving-status { display: flex; gap: 7px; align-items: center; justify-content: center; font-size: 10px; color: var(--app-muted); padding-top: 12px; }
+.phone .app-time-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--app-muted); margin-top: 17px; }
+.phone .app-spinner { display: inline-block; height: 12px; width: 12px; border-radius: 50%; border: 1.5px solid var(--app-border); border-top-color: var(--app-accent); animation: app-spin 1s linear infinite; }
+.phone .app-loading-label { display: flex; align-items: center; gap: 6px; color: var(--app-muted); font-size: 9px; }
+.phone .skeleton { background: var(--app-accent-soft); animation: app-pulse 1.5s ease-in-out infinite; }
+.phone .app-sheet { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; padding: 12px 24px 39px; border-radius: 27px 27px 0 0; background: var(--app-background); box-shadow: 0 -10px 50px #0002; }
+.phone .app-sheet-handle { height: 4px; width: 34px; border-radius: 10px; background: var(--app-border); margin: 0 auto 24px; }
+.phone .app-overlay-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.phone .app-sheet > p { font-size: 11px; color: var(--app-muted); margin-bottom: 22px; }
+.phone .app-choice { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 14px; background: none; padding: 18px 0; text-align: left; border: 0; border-top: 1px solid var(--app-border); }
+.phone .app-choice strong, .phone .app-choice small { display: block; }
+.phone .app-choice strong { font-size: 12px; font-weight: 550; margin-bottom: 4px; }
+.phone .app-choice small { font-size: 10px; color: var(--app-muted); }
+.phone .app-choice-check { width: 23px; height: 23px; border: 1px solid var(--app-border); border-radius: 50%; display: grid; place-items: center; }
+.phone .app-choice[aria-pressed='true'] .app-choice-check { background: var(--app-accent); color: var(--app-on-accent); border-color: var(--app-accent); }
+.phone .app-dialog { position: absolute; z-index: 2; top: 50%; left: 22px; right: 22px; transform: translateY(-50%); border-radius: 24px; background: var(--app-background); padding: 28px 23px 23px; text-align: center; box-shadow: 0 20px 50px #0003; }
+.phone .app-dialog-symbol { width: 60px; height: 60px; border-radius: 50%; background: var(--app-accent-soft); display: grid; place-items: center; margin: 0 auto 20px; }
+.phone .app-dialog h2 { font-size: 27px; }
+.phone .app-dialog p { font-size: 12px; line-height: 1.7; color: var(--app-muted); margin: 15px 0 24px; }
+.phone .app-dialog .app-button + .app-button { margin-top: 9px; }
+.phone .app-switch { width: 43px; height: 26px; padding: 3px; border: none; border-radius: 20px; background: var(--app-border); flex-shrink: 0; }
+.phone .app-switch span { width: 20px; height: 20px; background: var(--app-surface); display: block; border-radius: 50%; box-shadow: 0 1px 3px #0002; transition: transform .2s; }
+.phone .app-switch[aria-checked='true'] { background: var(--app-accent); }
+.phone .app-switch[aria-checked='true'] span { transform: translateX(17px); background: var(--app-on-accent); }
+/* Daylight's illustration is CSS geometry, so no example assets need copying. */
+.phone .daylight-welcome { padding: 16px 27px 14px; }
+.phone .daylight-welcome-brand { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 22px; font-family: var(--app-serif); letter-spacing: -.8px; }
+.phone .daylight-art { margin: 31px auto 22px; position: relative; height: 229px; width: 255px; flex-shrink: 0; overflow: hidden; border: 1px solid var(--app-border); background: var(--app-accent-soft); border-radius: 130px 130px 20px 20px; }
+.phone .daylight-orbit { position: absolute; border: 1px solid color-mix(in srgb, var(--app-accent) 24%, transparent); border-radius: 50%; width: 205px; height: 205px; left: 24px; top: 20px; }
+.phone .orbit-two { width: 152px; height: 152px; top: 46px; left: 51px; }
+.phone .daylight-sun { position: absolute; width: 101px; height: 101px; border-radius: 50%; left: 76px; top: 71px; background: var(--app-warmth); box-shadow: 0 0 38px color-mix(in srgb, var(--app-warmth) 25%, transparent); }
+.phone .daylight-horizon { position: absolute; width: 330px; height: 170px; left: -32px; top: 143px; border: 1px solid color-mix(in srgb, var(--app-accent) 24%, transparent); border-radius: 50%; background: color-mix(in srgb, var(--app-accent-soft) 91%, var(--app-accent)); box-shadow: 0 -6px 20px color-mix(in srgb, var(--app-accent-soft) 60%, transparent); }
+.phone .daylight-art-caption { position: absolute; bottom: 24px; left: 0; right: 0; text-align: center; font-size: 6px; letter-spacing: 2px; color: var(--app-accent); }
+.phone .daylight-welcome-copy { text-align: center; }
+.phone .daylight-welcome-copy h1 { font-size: 42px; margin: 12px 0; }
+.phone .daylight-welcome-copy > p:last-child { font-size: 12px; line-height: 1.7; color: var(--app-muted); }
+.phone .daylight-welcome-footer { margin-top: auto; padding-top: 20px; }
+.phone .daylight-welcome-footer > p { text-align: center; margin-top: 12px; font-size: 9px; color: var(--app-muted); }
+.phone .daylight-today .app-scroll { padding: 12px 24px 8px; }
+.phone .daylight-topline { display: flex; align-items: center; justify-content: space-between; }
+.phone .daylight-wordmark { display: flex; align-items: center; gap: 5px; font-family: var(--app-serif); font-size: 22px; letter-spacing: -.6px; }
+.phone .daylight-page-title { margin-top: 21px; margin-bottom: 18px; }
+.phone .daylight-page-title h1 { margin-top: 9px; font-size: 34px; }
+.phone .daylight-summary { min-height: 64px; border: 1px solid var(--app-border); border-radius: 13px; display: flex; align-items: center; gap: 12px; padding: 12px 13px; background: var(--app-accent-soft); }
+.phone .daylight-summary-mark { display: flex; }
+.phone .daylight-summary strong, .phone .daylight-summary span:not(.daylight-summary-mark):not(.daylight-summary-dot) { display: block; }
+.phone .daylight-summary strong { font-size: 11px; font-weight: 550; margin-bottom: 4px; }
+.phone .daylight-summary div > span { font-size: 9px; color: var(--app-muted); }
+.phone .daylight-summary-dot { height: 6px; width: 6px; border-radius: 50%; background: var(--app-accent); margin-left: auto; }
+.phone .daylight-section-label { display: flex; align-items: center; justify-content: space-between; margin: 16px 0 7px; }
+.phone .daylight-section-label h2 { font-family: inherit; font-size: 12px; font-weight: 600; letter-spacing: 0; }
+.phone .daylight-section-label h2 span { color: var(--app-muted); font-size: 9px; font-weight: 400; margin-left: 4px; }
+.phone .daylight-section-label .app-icon-button { width: 28px; height: 28px; border: none; }
+.phone .daylight-plans { border-top: 1px solid var(--app-border); }
+.phone .daylight-plan-row { width: 100%; display: flex; align-items: center; gap: 12px; border: none; border-bottom: 1px solid var(--app-border); padding: 10px 0; background: none; text-align: left; }
+.phone .daylight-plan-icon { width: 41px; height: 41px; border: 1px solid var(--app-border); background: var(--app-surface); border-radius: 12px; display: inline-flex; justify-content: center; align-items: center; flex-shrink: 0; }
+.phone .daylight-plan-copy { flex: 1; }
+.phone .daylight-plan-copy strong, .phone .daylight-plan-copy small { display: block; }
+.phone .daylight-plan-copy strong { font-size: 12px; font-weight: 550; }
+.phone .daylight-plan-copy small { margin-top: 4px; font-size: 9px; color: var(--app-muted); }
+.phone .daylight-plan-copy small span { padding: 0 4px; }
+.phone .daylight-plan-row > svg { color: var(--app-muted); }
+.phone .daylight-plan-row.is-done .daylight-plan-icon { background: var(--app-accent-soft); }
+.phone .daylight-plan-row.is-done strong { color: var(--app-muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.phone .daylight-add-plan { border: 1px dashed var(--app-border); border-radius: 11px; width: 100%; padding: 11px 10px; margin-top: 13px; background: transparent; display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 11px; }
+.phone .daylight-bottom-note { color: var(--app-muted); display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 15px; margin-bottom: 7px; font-family: var(--app-serif); font-style: italic; font-size: 11px; }
+.phone .daylight-skeleton-list { border-top: 1px solid var(--app-border); }
+.phone .daylight-skeleton-row { display: flex; gap: 12px; align-items: center; padding: 17px 0; border-bottom: 1px solid var(--app-border); }
+.phone .daylight-skeleton-row > i { width: 41px; height: 41px; border-radius: 12px; }
+.phone .daylight-skeleton-row > div { flex: 1; }
+.phone .daylight-skeleton-row b { display: block; height: 11px; width: 60%; border-radius: 5px; }
+.phone .daylight-skeleton-row span { display: block; height: 8px; width: 40%; border-radius: 5px; margin-top: 8px; }
+.phone .daylight-skeleton-list + .app-subtle-note { margin-top: 26px; }
+.phone .daylight-detail { padding: 4px 27px 14px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.phone .daylight-detail-art { position: relative; width: 190px; height: 190px; margin: 15px auto 30px; background: var(--app-accent-soft); border: 1px solid var(--app-border); border-radius: 50%; display: grid; place-items: center; }
+.phone .daylight-detail-art > svg { transform: rotate(-10deg); }
+.phone .detail-orbit { position: absolute; width: 155px; height: 155px; border: 1px solid color-mix(in srgb, var(--app-accent) 21%, transparent); border-radius: 50%; }
+.phone .detail-dot { position: absolute; background: var(--app-warmth); width: 18px; height: 18px; border-radius: 50%; top: 23px; right: 35px; }
+.phone .daylight-detail h1 { font-size: 39px; margin-top: 14px; line-height: 1.1; overflow-wrap: anywhere; }
+.phone .daylight-intention { margin-top: 30px; padding: 19px 0; border-top: 1px solid var(--app-border); border-bottom: 1px solid var(--app-border); width: 100%; }
+.phone .daylight-intention .app-eyebrow { font-size: 8px; }
+.phone .daylight-intention p { margin-top: 10px; font-family: var(--app-serif); color: var(--app-muted); font-size: 15px; font-style: italic; line-height: 1.6; }
+.phone .daylight-detail > .app-subtle-note { margin-top: 14px; }
+.phone .daylight-complete { padding: 8px 27px 17px; text-align: center; align-items: center; }
+.phone .app-complete-close { align-self: flex-end; }
+.phone .daylight-complete-art { width: 235px; height: 225px; position: relative; flex-shrink: 0; display: grid; place-items: center; margin-top: 23px; }
+.phone .daylight-complete-art > div { background: var(--app-accent-soft); border: 1px solid var(--app-border); border-radius: 50%; width: 125px; height: 125px; display: grid; place-items: center; }
+.phone .complete-ring { position: absolute; border: 1px solid var(--app-border); border-radius: 50%; }
+.phone .ring-one { width: 173px; height: 173px; }
+.phone .ring-two { width: 220px; height: 220px; }
+.phone .daylight-complete-art i { position: absolute; width: 16px; height: 16px; background: var(--app-warmth); border-radius: 50%; right: 33px; top: 37px; }
+.phone .daylight-complete-art b { position: absolute; width: 9px; height: 9px; background: var(--app-accent); border-radius: 50%; left: 26px; bottom: 44px; }
+.phone .daylight-complete > .app-eyebrow { margin-top: 21px; }
+.phone .daylight-complete h1 { margin-top: 14px; font-size: 37px; }
+.phone .daylight-complete .app-intro { font-size: 12px; }
+.phone .daylight-complete-card { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 27px; padding: 15px 5px; border-block: 1px solid var(--app-border); font-family: var(--app-serif); font-size: 13px; font-style: italic; }
+.phone .daylight-settings { padding: 25px 26px 20px; }
+.phone .daylight-settings h1 { margin-top: 13px; font-size: 42px; }
+.phone .daylight-setting-group { margin-top: 35px; padding: 20px 0; border-block: 1px solid var(--app-border); }
+.phone .daylight-setting-row { display: flex; align-items: center; gap: 10px; }
+.phone .daylight-setting-row > span:nth-child(2) { flex: 1; }
+.phone .daylight-setting-row strong, .phone .daylight-setting-row small { display: block; }
+.phone .daylight-setting-row strong { font-size: 11px; font-weight: 550; }
+.phone .daylight-setting-row small { color: var(--app-muted); font-size: 8px; margin-top: 5px; }
+.phone .app-setting-note { color: var(--app-muted); font-size: 9px; line-height: 1.65; padding: 12px 0; }
+.phone .daylight-about { display: flex; align-items: center; flex-direction: column; margin-top: 55px; }
+.phone .daylight-about strong { font: 27px var(--app-serif); letter-spacing: -.8px; margin-top: 6px; }
+.phone .daylight-about span { color: var(--app-muted); font: italic 12px var(--app-serif); margin-top: 8px; }
+.phone .daylight-about small { color: var(--app-muted); font-size: 8px; margin-top: 25px; }
+/* The blank app uses the same primitives with only this small layout layer. */
+.phone .blank-screen { padding: 22px 26px 14px; gap: 20px; }
+.phone .blank-wordmark { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; letter-spacing: -.3px; }
+.phone .blank-logo { display: inline-grid; place-items: center; height: 29px; width: 29px; border: 1px solid var(--app-border); background: var(--app-accent-soft); border-radius: 8px; }
+.phone .blank-hero { margin-top: 45px; }
+.phone .blank-hero h1 { font-family: inherit; font-size: 35px; font-weight: 550; letter-spacing: -1.5px; line-height: 1.1; margin: 16px 0; }
+.phone .blank-hero p { color: var(--app-muted); font-size: 14px; line-height: 1.65; }
+.phone .blank-kicker { color: var(--app-accent); font-size: 9px; font-weight: 650; letter-spacing: 1.7px; text-transform: uppercase; }
+.phone .blank-example, .phone .blank-note { background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 15px; padding: 18px; font-size: 12px; line-height: 1.6; }
+.phone .blank-example strong { display: block; margin-bottom: 6px; font-size: 13px; }
+.phone .blank-example p, .phone .blank-note p { color: var(--app-muted); font-size: 12px; }
+.phone .blank-example-icon { width: 37px; height: 37px; border-radius: 10px; background: var(--app-accent-soft); display: inline-grid; place-items: center; color: var(--app-accent); margin-bottom: 14px; font-size: 19px; }
+.phone .blank-note-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--app-accent); margin-right: 6px; }
+.phone .blank-bottom { margin-top: auto; }
+.phone .blank-bottom > p { font-size: 10px; color: var(--app-muted); text-align: center; margin-top: 12px; line-height: 1.6; }
+.phone .blank-back { border: none; background: none; padding: 4px 0; text-align: left; align-self: flex-start; font-size: 12px; color: var(--app-muted); }
+@keyframes app-spin { to { transform: rotate(360deg); } }
+@keyframes app-pulse { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .phone *, .phone *::before, .phone *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; } }
+
+/* The current tab is a location indicator; it cannot bypass loading or error states. */
+.phone .app-tabbar button:disabled { opacity: 1; cursor: default; }

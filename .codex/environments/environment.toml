@@ -1,0 +1,19 @@
+version = 1
+name = "App Flow Studio"
+
+[setup]
+script = ""
+
+[[actions]]
+name = "Run"
+icon = "run"
+command = "npm run dev"
+
+[[actions]]
+name = "Phone preview"
+icon = "run"
+command = "npm run dev:phone"
+
+[[actions]]
+name = "Check"
+command = "npm run check"
