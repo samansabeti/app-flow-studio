@@ -12,13 +12,37 @@ Requires Node.js 18 or later. No dependencies or install step.
 npm run dev
 ```
 
-Open the URL printed in the terminal. The default is `http://127.0.0.1:8002`; busy ports fall forward. Override with `npm run dev -- --port 8010`, or use port `0` for an available port. Stop with Ctrl+C. The server binds only to your computer. Use the server rather than opening `index.html` directly.
+Open the URL printed in the terminal. The default is `http://127.0.0.1:8002`; busy ports fall forward. Override with `npm run dev -- --port 8010`, or use port `0` for an available port. Stop with Ctrl+C. The server binds only to your computer and serves the browser source in `app/`. Use the server rather than opening `app/index.html` directly.
+
+## Source, documentation, and output
+
+This repository keeps the product together while separating files by purpose:
+
+```text
+app/          Browser source: HTML, CSS, JavaScript, and fictional examples
+docs/         Project context, kickoff brief, validation, and deployment guidance
+scripts/      Local checks, build, export, and client-generation tools
+templates/    Starting content for independent client instances
+dist/         Generated public files, excluded from Git
+```
+
+`README.md` stays at the root as the project entry point. `AGENTS.md` stays there so its instructions apply across the repository. `package.json`, `server.mjs`, and `vercel.json` configure local commands and hosting.
+
+Run `npm run build` to validate the product and create `dist/`. The dependency-free build copies only an explicit browser-file inventory, sanitizes the configuration, and checks the resulting package. It does not upload anything. Treat `app/` as the editable source and `dist/` as disposable output: edit the source, then build again.
+
+The build replaces only its own unchanged output. If you have edited `dist/` or created that folder yourself, it stops so you can preserve those files. Build ownership records stay outside the public folder in ignored `.app-flow-exports/`. Run `npm run check:build` to test output isolation, repeat builds, and overwrite protection using temporary fictional fixtures.
+
+`package.json` declares `appFlow.browserRoot: "app"` for this master. The tools use that setting to find browser files while keeping their command entry points at the project root. Generated clients omit it and keep their flat layout.
+
+Commit reviewed source and shareable documentation. Keep secrets, actual `.env` files, private notes, and raw chat exports outside this repository. `.gitignore` helps exclude untracked files; it does not erase files already committed. A private repository does not make a deployed website private. See [deployment guidance](docs/DEPLOYMENT.md) for the planned hosting boundary.
 
 ## Hosted snapshot
 
 [App Flow Studio](https://app-flow-studio.vercel.app) is a public snapshot of the fictional examples, deployed on October 20, 2026. Anyone with the link can open it.
 
-The Vercel project `app-flow-studio` under `samansabetis-projects` hosts a reviewed static package containing eight browser files and `vercel.json`. It has no Git integration. Local changes require an explicitly authorized redeployment of the reviewed browser-only package; the local master has no Vercel project link or deployment automation.
+The Vercel project `app-flow-studio` under `samansabetis-projects` hosts a reviewed static package containing eight browser files and `vercel.json`, uploaded with the Vercel CLI. The deployed package excludes project documentation, local tools, and secrets. It is a saved snapshot, so local changes do not alter the live site.
+
+GitHub integration and the new `dist/` build configuration are pending separate approval. The local `vercel.json` describes the intended build; writing it does not update Vercel. See [deployment guidance](docs/DEPLOYMENT.md) for settings and the planned migration.
 
 ## Create a client instance
 
@@ -30,9 +54,13 @@ npm run create-instance -- ../acme-app-flow --name "Acme App Flow" --app-name "A
 
 The parent folder must exist and the destination must be new. The generator refuses to overwrite files or folders. It copies only approved runtime, documentation, tooling, and template files. Fictional demo apps and other clients are excluded.
 
-The new instance opens Overview in Existing, with an expanded collapsible sidebar and a visible Design library. It contains a single app with independent Existing and Future modules. Existing starts as an explicitly unreviewed evidence scaffold; Future starts as a proposed journey. The browser remembers a later version choice; imported instances retain their declared default. Replace those placeholders using [KICKOFF.md](KICKOFF.md). The old `create-app` command remains a compatibility alias.
+The new instance opens Overview in Existing, with an expanded collapsible sidebar and a visible Design library. It contains a single app with independent Existing and Future modules. Existing starts as an explicitly unreviewed evidence scaffold; Future starts as a proposed journey. The browser remembers a later version choice; imported instances retain their declared default. Replace those placeholders using [the kickoff brief](docs/KICKOFF.md). The old `create-app` command remains a compatibility alias.
+
+Generated clients keep their existing flat layout: `index.html`, `config.js`, and the shared runtime live at the client root, with app modules under `apps/`. The master’s `app/` and `docs/` organization does not move files in existing clients.
 
 To import an existing app, add `--from <source-folder> --manifest <manifest.json>`. The manifest must explicitly list its registry entry and each required content file. It must include every module, stylesheet, image, and font used by the app. The importer rejects escaping paths and symbolic links. It does not discover or copy an entire source folder.
+
+`--from` is the folder that contains the manifest’s relative paths. For a generated client this is the client root; for content from this master it is `app/`.
 
 ## Use in Codex
 
@@ -66,11 +94,13 @@ Host `dist/` as a static site. Each screen can be linked using its existing `?ap
 
 | Location | Purpose |
 | --- | --- |
-| `config.js` | Studio name, app registry, versions, and defaults |
-| `studio.js`, `studio.css` | Neutral shared Studio interface and interaction runtime |
-| `app.css`, `ui.js` | Shared app primitives and rendering helpers |
-| `apps/daylight.js`, `apps/blank.js` | Fictional product examples; not copied into client instances |
+| `app/config.js` | Studio name, app registry, versions, and defaults |
+| `app/studio.js`, `app/studio.css` | Neutral shared Studio interface and interaction runtime |
+| `app/app.css`, `app/ui.js` | Shared app primitives and rendering helpers |
+| `app/apps/daylight.js`, `app/apps/blank.js` | Fictional product examples; not copied into client instances |
+| `docs/` | Shareable context and guidance; excluded from the public build |
 | `templates/client/` | Blank Existing audit and Future proposal templates |
+| `scripts/build.mjs` | Validated browser-only master build into `dist/` |
 | `scripts/create-instance.mjs` | Safe independent client creation |
 | `scripts/export-share.mjs` | Static client export from the explicit file inventory |
 | `scripts/check.mjs` | App contract and interaction consistency checks |
@@ -92,7 +122,7 @@ Studio appearance and app appearance are separate. A reference app should only e
 
 ## Configure the workspace
 
-`config.js` accepts an optional `studio` object. Omit it for the legacy defaults: Screens landing page, switchable Studio appearance, visible Design library, and expanded sidebar. New templates opt into Overview and a collapsible sidebar.
+`app/config.js` in the master, or `config.js` in a generated client, accepts an optional `studio` object. Omit it for the legacy defaults: Screens landing page, switchable Studio appearance, visible Design library, and expanded sidebar. New templates opt into Overview and a collapsible sidebar. Paths inside the configuration remain relative to the browser root, so an app module is still `./apps/daylight.js`.
 
 ```js
 "studio": {
@@ -120,7 +150,7 @@ Phone mode serves only the browser runtime, sanitized configuration, and selecte
 
 ## The app contract
 
-Each app module exports one object. Keep screen markup and product behavior here; keep general studio behavior in `studio.js`.
+Each app module exports one object. Keep screen markup and product behavior here; keep general studio behavior in `app/studio.js` (or `studio.js` in a generated client).
 
 - **`identity`**: `id`, `name`, `tagline`, `description`, `version`.
 - **`overview`**, optional: `{ eyebrow, title, description, rationale, approachTitle, strategies, reference }`. `strategies` is a list of hypothesis strings; only `**bold**` is formatted, with all HTML escaped. `reference` is `{ label, url }` with an HTTP(S) URL. Overview appears only when `studio.showOverview` is true. Keep hypotheses distinct from verified findings.
@@ -179,10 +209,10 @@ Use the route when discussing the whole screen, and the unique card ID when spec
 
 ### Change the look
 
-Update app-owned tokens and registered stylesheets, keeping each supported appearance readable. Keep Design library specimens consistent with the actual screens. Screenshot references retain their source proportions and pixels. Use sampled values only when clearly labeled as approximate. Change `studio.css` only for the surrounding Studio interface.
+Update app-owned tokens and registered stylesheets, keeping each supported appearance readable. Keep Design library specimens consistent with the actual screens. Screenshot references retain their source proportions and pixels. Use sampled values only when clearly labeled as approximate. Change `app/studio.css` (or `studio.css` in a generated client) only for the surrounding Studio interface.
 
 ## Validate before handing off
 
-Run `npm run check`, then inspect affected screens and interactions in a browser. Exercise Back, Reset, forms, overlays, timer cancellation, keyboard navigation, supported appearances, and a narrow viewport. Compare Existing source frames to their assets. Check that map labels and context reflect working transitions. Scripted checks do not replace visual review; report when browser verification is unavailable.
+Run `npm run check` and `npm run build` in the master, then inspect affected screens and interactions in a browser. Generated clients use `npm run check` and `npm run export-share`. Exercise Back, Reset, forms, overlays, timer cancellation, keyboard navigation, supported appearances, and a narrow viewport. Compare Existing source frames to their assets. Check that map labels and context reflect working transitions. Scripted checks do not replace visual review; report when browser verification is unavailable.
 
 This is a prototype and evidence-review workspace, not a production integration. Captured claims are source evidence; proposed copy is a design choice, not a verified product promise.

@@ -4,10 +4,15 @@
   "private": true,
   "description": "Reusable UX audits and proposed flows, with independent client instances.",
   "type": "module",
+  "appFlow": {
+    "browserRoot": "app"
+  },
   "scripts": {
     "dev": "node server.mjs",
     "dev:phone": "node server.mjs --phone --port 8003",
     "check": "node scripts/check.mjs",
+    "build": "npm run check && node scripts/build.mjs",
+    "check:build": "node --test scripts/check-build.mjs",
     "check:phone": "node scripts/check-phone-preview.mjs",
     "create-app": "node scripts/create-app.mjs",
     "create-instance": "node scripts/create-instance.mjs",

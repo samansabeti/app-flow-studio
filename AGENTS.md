@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Build the reusable Studio product and safely generate independent client instances. Each client audits Existing evidence and proposes a Future experience through Screens, Flow map, Design library, and a live prototype. Read `README.md`, `config.js`, and the active app module before editing. Use `KICKOFF.md` when starting a new app.
+Build the reusable Studio product and safely generate independent client instances. Each client audits Existing evidence and proposes a Future experience through Screens, Flow map, Design library, and a live prototype. Read `README.md`, `app/config.js`, and the active module under `app/apps/` before editing the master. Use `docs/KICKOFF.md` when starting a new app. Generated clients retain their flat layout and their own instructions.
 
 ## Boundaries
 
@@ -12,10 +12,11 @@ Build the reusable Studio product and safely generate independent client instanc
 - Distinguish screenshot-confirmed content from locally linked transitions. Controls with uncaptured outcomes should explain the limit instead of fabricating production behavior. Never invent implementation claims or describe a control that does not work.
 - When the user requests a Future redesign, create proposed editable screens and interactions in a separate design-state module. Label them as drafts, keep Existing screenshots intact, and distinguish proposed product copy from confirmed production behavior.
 - Preserve plain HTML/CSS/JS and the dependency-free server. Do not add packages or a build framework for routine design work.
-- Keep shared studio behavior in `studio.js` and `studio.css`; keep product identity, tokens, design library, state, screens, actions, overlays, boards, and journeys in the app module.
+- Keep shared studio behavior in `app/studio.js` and `app/studio.css`; keep product identity, tokens, design library, state, screens, actions, overlays, boards, and journeys in the app module.
+- Keep browser source in `app/`, shareable project context in `docs/`, and generated public output in ignored `dist/`. Build from an explicit browser inventory. Never copy the repository wholesale into public output. Keep secrets, private notes, and raw chat exports outside the repository.
 - Keep the studio chrome neutral and minimal. Open prototypes from screen cards or map nodes. Keep fresh-app creation in the documented CLI workflow.
 - Studio appearance and app preview appearance are independent. Store the studio preference globally and the app preference per app in browser-local storage. App colors and typography must not inherit the studio’s visual identity.
-- Avoid importing any specific example app from the studio runtime. `config.js` is the app registry.
+- Avoid importing any specific example app from the studio runtime. `app/config.js` is the app registry; its module and asset paths remain relative to the browser root.
 
 ## Working model
 
@@ -43,6 +44,7 @@ Start with the smallest complete journey. Add distinct states when they clarify 
 - `npm run dev` starts the local preview; the terminal reports its actual URL.
 - `npm run dev -- --port 0` chooses an available port automatically.
 - `npm run check` validates app configuration and consistency.
+- `npm run build` validates and generates the master’s browser-only `dist/`. It does not deploy. Review the output before separately authorized publication.
 - `npm run create-instance -- ../client-app-flow --name "Client App Flow" --app-name "Client" --port 8004` creates an independent Existing/Future instance and refuses an existing destination.
 - In a generated instance, keep `instance.json` synchronized with required app content and assets. `npm run export-share` exports only that explicit inventory and the browser runtime.
 - Optional `instance.json.exportFiles` narrows the export and phone-preview inventory; preserve active modules, styles, icons, assets, and third-party license notices. Dynamically computed asset paths still require manual inventory review.

@@ -5,13 +5,13 @@ import { copyFile, mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node
 import http from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { STATIC_CORE } from './instance-files.mjs';
+import { projectPaths } from './project-paths.mjs';
 import { qrSvg } from './qr-code.mjs';
 
 // Only this isolated fictional fixture is exposed during the checks. No client
 // screenshots or user data are copied, and existing preview processes stay intact.
-const source = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const { projectRoot: source, browserRoot } = await projectPaths();
 const temporary = await realpath(await mkdtemp(path.join(tmpdir(), 'app-flow-phone-check-')));
 const fixture = path.join(temporary, 'client');
 const children = new Set();
@@ -28,7 +28,7 @@ async function write(relative, content) {
 }
 async function copy(relative) {
   await mkdir(path.dirname(path.join(fixture, relative)), { recursive: true });
-  await copyFile(path.join(source, relative), path.join(fixture, relative));
+  await copyFile(path.join(STATIC_CORE.includes(relative) ? browserRoot : source, relative), path.join(fixture, relative));
 }
 function start(args) {
   const child = spawn(process.execPath, ['server.mjs', ...args], {
@@ -124,7 +124,7 @@ const sentinel = 'PHONE_PREVIEW_PRIVATE_SENTINEL';
 
 try {
   await mkdir(fixture);
-  for (const file of [...STATIC_CORE, 'server.mjs', 'scripts/instance-files.mjs',
+  for (const file of [...STATIC_CORE, 'server.mjs', 'scripts/instance-files.mjs', 'scripts/project-paths.mjs',
     'scripts/qr-code.mjs', 'scripts/vendor/qrcodegen.mjs']) await copy(file);
   await write('package.json', '{"type":"module"}');
   await writeConfig(config);

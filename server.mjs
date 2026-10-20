@@ -1,11 +1,12 @@
 import http from 'node:http';
-import registry from './config.js';
 import { readFile, realpath, stat } from 'node:fs/promises';
 import { networkInterfaces } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { pathToFileURL } from 'node:url';
+import { projectPaths } from './scripts/project-paths.mjs';
 
-const root = await realpath(path.dirname(fileURLToPath(import.meta.url)));
+const { projectRoot, browserRoot: root } = await projectPaths();
+const registry = (await import(pathToFileURL(path.join(root, 'config.js')))).default;
 const args = process.argv.slice(2);
 let requestedPort = process.env.PORT ?? '8002';
 let phoneMode = false;
@@ -70,8 +71,8 @@ if (phoneMode) {
     phoneInterface = selected.name;
     const { STATIC_CORE, validateManifest, validateStudioConfig, configText, label, contentFile, isShareContent, safeRead, exists } = await import('./scripts/instance-files.mjs');
     let content;
-    if (await exists(path.join(root, 'instance.json'))) {
-      const metadata = JSON.parse((await safeRead(root, 'instance.json')).toString('utf8'));
+    if (await exists(path.join(projectRoot, 'instance.json'))) {
+      const metadata = JSON.parse((await safeRead(projectRoot, 'instance.json')).toString('utf8'));
       const manifest = validateManifest(metadata);
       content = (manifest.exportFiles ?? manifest.files).filter(isShareContent);
     } else {

@@ -8,6 +8,8 @@ npm run create-instance -- ../client-app-flow --name "Client App Flow" --app-nam
 
 Add the generated folder as a local Codex project. Start a chat inside that project and use the brief below. Work in the client copy; preserve the master.
 
+The master stores browser source in `app/` and guidance in `docs/`. Generated clients keep the flat layout described below: their `config.js`, runtime, and kickoff file are at the client root. Read the client’s own instructions when working there.
+
 ## Kickoff brief
 
 Build **[app name] App Flow** in this instance. Read `AGENTS.md`, `README.md`, `config.js`, `instance.json`, and both app modules before editing.

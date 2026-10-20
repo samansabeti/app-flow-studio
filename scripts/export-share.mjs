@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { STATIC_CORE, existingPath, exists, safeRead, digest, json, configText, parseConfig, validateManifest, label, isShareContent, checkLocalDependencies, writeNewTree, treeHashes, fail } from './instance-files.mjs';
+import { projectPaths } from './project-paths.mjs';
 
 const source = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 function outputName(args) {
@@ -22,18 +23,18 @@ function sameHashes(actual, expected) {
 export async function exportShare(args = []) {
   const name = outputName(args);
   if (name === null) { console.log('Usage: npm run export-share -- [--out dist]\nCreates a local static bundle from an instance’s allowlist. Replaces only its unchanged, previously owned output.'); return; }
-  const root = await existingPath(source, 'directory');
+  const { projectRoot: root, browserRoot } = await projectPaths(source);
   let metadata;
   try { metadata = JSON.parse((await safeRead(root, 'instance.json')).toString('utf8')); }
   catch (error) { fail(`Static export requires a generated client instance with instance.json. ${error.message}`); }
   if (metadata.schemaVersion !== 1 || typeof metadata.instance?.id !== 'string' || !metadata.instance.id) fail('Unsupported or incomplete instance metadata.');
-  const config = parseConfig((await safeRead(root, 'config.js')).toString('utf8'));
+  const config = parseConfig((await safeRead(browserRoot, 'config.js')).toString('utf8'));
   if (!Array.isArray(config.apps) || config.apps.length !== 1 || config.apps[0].id !== metadata.app?.id || config.defaultApp !== metadata.app.id) fail('An instance export must contain exactly its own registered app.');
   const manifest = validateManifest({ app: config.apps[0], files: metadata.files, exportFiles: metadata.exportFiles, studio: config.studio });
   const files = new Map();
-  for (const file of STATIC_CORE) files.set(file, await safeRead(root, file));
+  for (const file of STATIC_CORE) files.set(file, await safeRead(browserRoot, file));
   for (const file of manifest.exportFiles ?? manifest.files) {
-    const bytes = await safeRead(root, file);
+    const bytes = await safeRead(browserRoot, file);
     if (isShareContent(file)) files.set(file, bytes);
   }
   files.set('config.js', configText({

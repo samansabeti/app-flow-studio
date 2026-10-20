@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { validateStudioConfig, validateManifest, safeRead, STATIC_CORE, checkLocalDependencies, contentFile, isShareContent } from './instance-files.mjs';
+import { projectPaths } from './project-paths.mjs';
 
 // Contract checks for the app data, not a substitute for trying the prototype.
 // This reads the registry, so it also works in a fresh copy with only a blank app.
-const root = new URL('../', import.meta.url);
+const { projectRoot, browserRoot } = await projectPaths();
+const root = pathToFileURL(`${browserRoot}${path.sep}`);
 const failures = [];
 const builtIns = new Set(['back', 'dismiss-overlay', 'dismiss-toast']);
 let checks = 0;
@@ -62,8 +64,8 @@ check('Registry default app', () => assert.ok(registry.apps.some(app => app.id =
 check('Registry unique IDs', () => assert.equal(new Set(registry.apps.map(app => app.id)).size, registry.apps.length));
 try {
   let files;
-  if (existsSync(new URL('instance.json', root))) {
-    const raw = JSON.parse(readFileSync(new URL('instance.json', root), 'utf8'));
+  if (existsSync(path.join(projectRoot, 'instance.json'))) {
+    const raw = JSON.parse(readFileSync(path.join(projectRoot, 'instance.json'), 'utf8'));
     const manifest = validateManifest({ ...raw, studio: registry.studio });
     check('Instance registry matches config', () => {
       assert.equal(registry.apps.length, 1);
@@ -337,6 +339,6 @@ if (failures.length) {
   process.exitCode = 1;
 } else {
   console.log(`Passed ${checks} checks across ${registry.apps.length} apps (${configurations.length} module configurations) and ${cardCount} cards.`);
-  console.log(`Checked registry variants, presentation, tokens, design library, isolated setup, renderers, handlers, context, and map references in ${path.basename(fileURLToPath(root))}.`);
+  console.log(`Checked registry variants, presentation, tokens, design library, isolated setup, renderers, handlers, context, and map references in ${path.basename(projectRoot)}.`);
   console.log('Also open the browser to verify layout, keyboard navigation, timers, and complete flows.');
 }

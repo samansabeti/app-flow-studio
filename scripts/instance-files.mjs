@@ -7,7 +7,7 @@ export const STATIC_CORE = ['index.html', 'studio.js', 'studio.css', 'app.css', 
 export const TEMPLATE_FILES = ['existing.js', 'future.js', 'existing.css', 'future.css'];
 export const INSTANCE_CORE = [...STATIC_CORE, 'server.mjs', 'scripts/check.mjs',
   'scripts/create-instance.mjs', 'scripts/create-app.mjs', 'scripts/export-share.mjs',
-  'scripts/instance-files.mjs', 'scripts/check-phone-preview.mjs', 'scripts/qr-code.mjs',
+  'scripts/instance-files.mjs', 'scripts/project-paths.mjs', 'scripts/check-phone-preview.mjs', 'scripts/qr-code.mjs',
   'scripts/vendor/qrcodegen.mjs', ...TEMPLATE_FILES.map(file => `templates/client/${file}`)];
 const extensions = new Set(['.js', '.mjs', '.css', '.json', '.svg', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.ico', '.woff', '.woff2', '.ttf', '.otf', '.md', '.txt']);
 const privateName = /^(?:\.?(?:env|git|codex|ssh|aws)(?:[.-]|$)|(?:secrets?|credentials?|tokens?)(?:[.-]|$))/i;

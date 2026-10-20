@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { STUDIO_VERSION, STATIC_CORE, INSTANCE_CORE, TEMPLATE_FILES, label, slug, existingPath, exists, safeRead, digest, json, configText, validateManifest, isShareContent, checkLocalDependencies, writeNewTree, fail } from './instance-files.mjs';
+import { projectPaths } from './project-paths.mjs';
 
 const source = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const usage = 'npm run create-instance -- <new-destination> --name "Client App Flow" --app-name "Client" --port 8003 [--from <source-folder> --manifest <manifest.json>]';
@@ -125,7 +126,8 @@ Add app content to instance.json’s files list as it is introduced. If exportFi
 export async function createInstance(args, { legacy = false } = {}) {
   const opts = options(args, legacy);
   if (opts.help) { console.log(`Usage: ${usage}\nCreates a new isolated instance; never overwrites. Manifest: {app: <registry entry>, files: ["apps/relative-file"], exportFiles?: [<browser subset>], studio?: <presentation options>}.`); return; }
-  const root = await existingPath(source, 'directory'), destination = path.resolve(opts.destination);
+  const { projectRoot: root, browserRoot } = await projectPaths(source);
+  const destination = path.resolve(opts.destination);
   const parent = await existingPath(path.dirname(destination), 'directory');
   if (await exists(destination)) fail(`Nothing was overwritten. Destination already exists: ${destination}`);
   if (destination === root || destination.startsWith(`${root}${path.sep}`)) fail('Create the instance outside the source project.');
@@ -154,7 +156,7 @@ export async function createInstance(args, { legacy = false } = {}) {
     }
   }
   const instanceId = randomUUID(), files = documents(opts, manifest, sourceKind);
-  for (const file of INSTANCE_CORE) files.set(file, await safeRead(root, file));
+  for (const file of INSTANCE_CORE) files.set(file, await safeRead(STATIC_CORE.includes(file) ? browserRoot : root, file));
   for (const [file, bytes] of content) files.set(file, bytes);
   files.set('instance.json', json({ schemaVersion: 1, studioVersion: STUDIO_VERSION, instance: { id: instanceId, name: opts.name, appName: opts.appName, port: opts.port }, lineage: { generator: 'App Flow Studio', version: STUDIO_VERSION, sourceKind, ...(importedFrom ? { importedFrom, importManifestSha256: importDigest } : {}) }, app: manifest.app, files: manifest.files, ...(manifest.exportFiles ? { exportFiles: manifest.exportFiles } : {}) }));
   const browserFiles = [...STATIC_CORE, 'config.js', ...(manifest.exportFiles ?? manifest.files).filter(isShareContent)];
