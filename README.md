@@ -34,15 +34,15 @@ The build replaces only its own unchanged output. If you have edited `dist/` or 
 
 `package.json` declares `appFlow.browserRoot: "app"` for this master. The tools use that setting to find browser files while keeping their command entry points at the project root. Generated clients omit it and keep their flat layout.
 
-Commit reviewed source and shareable documentation. Keep secrets, actual `.env` files, private notes, and raw chat exports outside this repository. `.gitignore` helps exclude untracked files; it does not erase files already committed. A private repository does not make a deployed website private. See [deployment guidance](docs/DEPLOYMENT.md) for the planned hosting boundary.
+Commit reviewed source and shareable documentation. Keep secrets, actual `.env` files, private notes, and raw chat exports outside this repository. `.gitignore` helps exclude untracked files; it does not erase files already committed. A private repository does not make a deployed website private. See [deployment guidance](docs/DEPLOYMENT.md) for the hosting boundary.
 
-## Hosted snapshot
+## Hosting and automatic deployment
 
-[App Flow Studio](https://app-flow-studio.vercel.app) is a public snapshot of the fictional examples, deployed on October 20, 2026. Anyone with the link can open it.
+[App Flow Studio](https://app-flow-studio.vercel.app) is the public site for the fictional examples. Anyone with the link can open it.
 
-The Vercel project `app-flow-studio` under `samansabetis-projects` hosts a reviewed static package containing eight browser files and `vercel.json`, uploaded with the Vercel CLI. The deployed package excludes project documentation, local tools, and secrets. It is a saved snapshot, so local changes do not alter the live site.
+The existing Vercel project `samansabetis-projects/app-flow-studio` is connected to the private GitHub repository [samansabeti/app-flow-studio](https://github.com/samansabeti/app-flow-studio). Its production branch is `main`. A push triggers a build from the repository root using `npm run build`; only the contents of `dist/` are published. The current build contains eight browser files.
 
-GitHub integration and the new `dist/` build configuration are pending separate approval. The local `vercel.json` describes the intended build; writing it does not update Vercel. See [deployment guidance](docs/DEPLOYMENT.md) for settings and the planned migration.
+With automatic production-domain assignment enabled, successful builds from `main` update the same public URL. Local edits and commits alone do not change the site. Pushing `main` is a publishing action: review changes and the build before pushing. See [deployment guidance](docs/DEPLOYMENT.md) for verification and rollback.
 
 ## Create a client instance
 

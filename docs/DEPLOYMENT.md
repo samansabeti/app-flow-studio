@@ -2,11 +2,13 @@
 
 ## Current live site
 
-[App Flow Studio](https://app-flow-studio.vercel.app) is a public snapshot of fictional examples. The October 20, 2026 deployment was uploaded with the Vercel CLI from a prepared package at `/private/tmp/app-flow-vercel-gkl9A7`. It did not come from GitHub and did not upload the complete working folder.
+[App Flow Studio](https://app-flow-studio.vercel.app) is the public site for fictional examples. The existing Vercel project `samansabetis-projects/app-flow-studio` is connected to the private GitHub repository [samansabeti/app-flow-studio](https://github.com/samansabeti/app-flow-studio), with `main` as its production branch.
 
-The package contained `index.html`, `studio.js`, `studio.css`, `app.css`, `ui.js`, sanitized `config.js`, `apps/daylight.js`, `apps/blank.js`, and hosting configuration `vercel.json`. Vercel serves the eight browser files; the hosting configuration was not publicly retrievable. Project documentation, local tooling, environment files, and Git metadata were absent from the upload. Copy and screen notes embedded in browser JavaScript are public.
+Vercel checks out the repository, runs `npm run build` from its root, and publishes only `dist/`. The current public inventory is `index.html`, `studio.js`, `studio.css`, `app.css`, `ui.js`, sanitized `config.js`, `apps/daylight.js`, and `apps/blank.js`. Copy and screen notes embedded in those browser files are public.
 
-The existing project is `samansabetis-projects/app-flow-studio`. The verified deployment ID is `dpl_62vfk4tA1PyWDnNPNaZivNCzDJbg`. This record describes that snapshot; repeat the file and access checks after any later deployment.
+Git integration gives Vercel access to tracked source and documentation for building. That access is separate from public website access: documentation, local tooling, Git metadata, and hosting configuration are outside `dist/` and must not be served. Keep secrets and private notes outside the repository.
+
+Before Git integration, the site was uploaded with the Vercel CLI from a prepared package at `/private/tmp/app-flow-vercel-gkl9A7`. Deployment `dpl_62vfk4tA1PyWDnNPNaZivNCzDJbg` is the pre-migration production snapshot and rollback reference. Keep the same Vercel project and domain.
 
 ## Local source and public output
 
@@ -18,9 +20,9 @@ npm run build
 
 The build validates the app and creates `dist/` from an explicit browser-file inventory. It removes local inventory metadata from the browser configuration and checks the resulting files. It adds no framework or installed dependencies. `dist/` is generated output and is ignored by Git; do not edit it by hand.
 
-The root `vercel.json` describes the intended build configuration. GitHub integration and applying these settings to the existing Vercel project remain pending approval. Nothing about a local build or commit changes the current live snapshot.
+The root `vercel.json` and Vercel project settings specify the build configuration below. Local builds and commits do not publish; pushing the production branch triggers a Vercel build. With automatic production-domain assignment enabled, successful production builds update the live URL.
 
-## Intended Vercel settings
+## Vercel settings
 
 | Setting | Value |
 | --- | --- |
@@ -35,7 +37,16 @@ The root `vercel.json` describes the intended build configuration. GitHub integr
 
 The root directory tells Vercel where to run commands, including tools in `scripts/`. The output directory limits the static files visitors can download. Only the reviewed contents of `dist/` should be served. Keep the existing project and domain when connecting GitHub.
 
-After separate approval, create and verify a private GitHub repository, push the reviewed commits, and connect that repository to the existing Vercel project. Before the first Git build, temporarily disable automatic production-domain assignment so the current site stays live during verification. Inspect the new deployment’s temporary URL and file inventory, then promote it after approval. Re-enable automatic domain assignment only when future pushes to `main` are intended to update the public site. Keep the previous deployment available for rollback.
+## Publishing and verification
+
+1. Run `npm run build` and inspect `dist/`. Review affected screens in the local browser and review the Git diff.
+2. Commit the intended changes, then push `main` when publication is authorized. Watch the new Git-triggered deployment in the existing Vercel project.
+3. Confirm the deployment reaches `READY`, references the pushed commit, and uses `npm run build` with output directory `dist`.
+4. Compare all eight hosted browser files with the local build. Confirm context paths such as `/AGENTS.md`, `/docs/KICKOFF.md`, `/package.json`, `/server.mjs`, `/.env`, and `/.git/config` return 404. Inspect the hosted interface as well.
+
+During the initial migration, hold automatic production-domain assignment until the first Git build is verified, then promote that production deployment and verify automatic assignment is enabled for future pushes. Preview protection can remain enabled; authenticated checks can use `vercel curl` without making the preview public.
+
+To restore the pre-migration snapshot when explicitly requested, run `vercel rollback dpl_62vfk4tA1PyWDnNPNaZivNCzDJbg --scope samansabetis-projects`. Rollback pauses automatic production-domain assignment; verify the restored site and deliberately restore automatic assignment when ready to resume releases.
 
 ## Git, privacy, and publishing
 
