@@ -5,5 +5,17 @@ dist/
 .env.*
 !.env.example
 .app-flow-export-*.json
+.app-flow-exports/
+.app-flow-export-*/
+.vercel/
+*.log
+# Private working material stays outside version control.
+private/
+notes/
+chat-exports/
+credentials*
+secrets.*
+*.key
+*.pem
 *.zip
 *.tar.gz
