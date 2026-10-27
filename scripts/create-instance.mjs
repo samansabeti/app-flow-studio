@@ -43,6 +43,7 @@ function documents(opts, manifest, kind) {
     dev: `node server.mjs --port ${opts.port}`,
     'dev:phone': `node server.mjs --phone --port ${opts.port > 0 && opts.port < 65535 ? opts.port + 1 : 0}`,
     check: 'node scripts/check.mjs', 'check:phone': 'node scripts/check-phone-preview.mjs', 'export-share': 'node scripts/export-share.mjs',
+    share: 'node scripts/share.mjs', 'draft-existing': 'node scripts/draft-existing.mjs',
     'create-instance': 'node scripts/create-instance.mjs', 'create-app': 'node scripts/create-app.mjs'
   }, engines: { node: '>=18' } }));
   files.set('.gitignore', '# Local and generated files\nnode_modules/\n.env\n.env.*\n!.env.example\n.DS_Store\n*.log\ndist/\n.app-flow-exports/\n.app-flow-export-*/\n');
@@ -72,6 +73,13 @@ Every visible control should work or explain the intentionally unbuilt outcome. 
 Reset or R restores the latest loading snapshot, otherwise the selected card. Back restores the loading state before completion, including its simulated data and entered draft, and holds it for inspection. Backward card browsing also holds loading; close and reopen the prototype to replay. Use \`ctx.later\` for incidental timed updates. Both timer methods cancel pending work on reset, back, navigation, and closing the prototype.
 
 Requested local edits can proceed without separate plan or diff approval; teaching is opt-in. Run \`npm run check\` for app-code or configuration changes and inspect the changed view or behavior. Broaden coverage only where shared runtime or tooling is affected. Documentation-only edits need content review, not a browser or export. Avoid per-edit validation logs and repeated setup audits. Automated checks do not establish visual quality or production behavior.
+
+## Audit workflow
+
+1. Draft Existing from screenshots: \`npm run draft-existing -- <folder>\`, then ask Claude to complete the draft (screen names, hotspots, notes, findings) from what the images show.
+2. Write findings in apps/findings.js: severity, problem, recommendation, and the Existing and Future card IDs they connect. They appear in the Findings view and in Present mode.
+3. Build the Future proposal in apps/future.js. Inside a prototype, Existing / Future jumps between paired cards.
+4. Frame the review with \`studio.about\` in config.js, then publish with \`npm run share -- --project <vercel-project> [--password]\` once publication is authorized. Without --password the link is public.
 
 ## Local static export
 
@@ -103,6 +111,8 @@ When new to this client, read README.md, config.js, instance.json, and the activ
 - Run stays loopback-only. Phone preview is a separate opt-in command for a trusted private LAN; it makes allowlisted app content available to reachable devices while running. Do not start it unless requested.
 - For app-code or configuration changes, run npm run check and inspect the changed view or behavior. Exercise reset/back, timers, overlays, keyboard access, appearances, and narrow layouts only where affected. Broaden regression coverage for shared runtime or tooling changes. Documentation-only edits need content review; generated-document changes also need a syntax check and sample client. Report actual checks and material gaps honestly.
 - Reuse working Run/project setup. Routine edits do not need a fresh export, validation-log entry, or setup audit. Stop when relevant checks pass unless new evidence requires more work.
+- Findings in apps/findings.js cite only what Existing evidence shows; check enforces valid severities and card references. Scope each design state's stylesheet under its own root class, because Present mode loads them together.
+- npm run share publishes to Vercel and is an outward-facing action: run it only with explicit authorization covering the project and audience, and state whether the link is public or password-protected.
 - npm run export-share creates a local static bundle only. Do not interpret export as permission to publish. Change source files and export again instead of manually editing dist or its ownership record.
 
 Report the actual preview URL, client directory, changes, checks run, and material limits.

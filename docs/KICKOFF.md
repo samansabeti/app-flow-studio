@@ -16,7 +16,9 @@ Build **[app name] App Flow** in this instance. Read `AGENTS.md`, `README.md`, `
 
 **Audience:** [Who will review this, and what decision should it help them make?]
 
-**Existing evidence:** [Screenshots, captures, or observed behavior. Identify gaps.]
+**Existing evidence:** [Screenshot folder for `npm run draft-existing`, or observed behavior. Identify gaps.]
+
+**Findings:** [The problems the audit must surface, ranked high / medium / low, each tied to evidence and a proposed fix.]
 
 **Journeys:** [Entry point → important choices → outcome.]
 

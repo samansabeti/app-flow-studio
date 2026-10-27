@@ -90,6 +90,16 @@ Review the included screenshots and copy before choosing an audience. Captured a
 
 Host `dist/` as a static site. Each screen can be linked using its existing `?app=...&state=...&card=...` URL. Keep export files unchanged between export and upload; run Export again after edits. The exporter refuses to overwrite an unowned or modified destination.
 
+### Publish with one command
+
+`npm run share -- --project <vercel-project> [--scope <team>] [--password]` runs the checks, exports, stages a clean copy of `dist/` outside the project, prints the project and audience, asks you to type the project name, then deploys to Vercel production. The project and scope are saved in `instance.json.hosting` after the first publish, so later shares need only `npm run share`. Add `--dry-run` to stop before deploying, or `--yes` to skip the prompt once publication is authorized.
+
+Without `--password` the link is public. With it, the bundle includes a small Vercel middleware that asks for a password (any username). Set the password once on the Vercel project with `vercel env add SHARE_PASSWORD production`; share refuses to deploy while it is missing, and the middleware refuses all visitors if it is ever removed. After the first password-protected share, open the URL in a private window and confirm the prompt appears before sending it.
+
+## Draft the Existing audit from screenshots
+
+In a new client, put the captures in one folder (named in screen order, such as `01-welcome.png`) and run `npm run draft-existing -- <folder>`. It copies them to `apps/assets/existing/`, adds them to `instance.json`, and replaces the untouched Existing scaffold with a data-driven module: one card per screenshot inside a frame that matches the captures. Then ask Claude to complete the draft. It looks at each image, names the screens, maps hotspots for captured transitions (or explains uncaptured outcomes), writes the approach/rationale notes, and drafts `apps/findings.js` from what the screenshots show. Review every finding before sharing. `--force` replaces an edited `apps/existing.js`.
+
 ## What belongs where
 
 | Location | Purpose |
@@ -120,6 +130,14 @@ On a phone, use the bottom tabs to move between views. Open a card, then use the
 
 Studio appearance and app appearance are separate. A reference app should only expose appearances supported by its evidence. Prototype state is simulated and resets on reload; the browser remembers appearance and selected version. No authentication, recording, purchase, or service connection is implied by a prototype.
 
+## Findings, comparison, and presenter mode
+
+A registry entry may name `findings: "./apps/findings.js"`. Its items are the written audit: `{ id, severity: 'high' | 'medium' | 'low', title, problem, recommendation, evidence: [cardIds], proposal: [cardIds] }`. Evidence cards come from the `evidenceState` design state (default `existing`) and proposal cards from `proposalState` (default `future`). In an app without design states, both refer to its own cards. Once items exist, a **Findings** view lists them by severity, with links that open each card in its own design state, and Overview shows a short summary.
+
+**Present** walks through findings one at a time with the evidence and proposal side by side; use the arrow keys, and select a screen to try it live. Inside a prototype, **Existing / Future** switches to the paired card in the other state. Pairs come from findings (the first evidence and first proposal card) or from an explicit `compare: { state: 'future', card: 'card-id' }` on a card. Presenter mode loads every state's stylesheet together, so scope each stylesheet under its own root class (as the templates do with `.client-existing` and `.client-future`).
+
+`npm run check` rejects unknown severities, duplicate IDs, and references to cards that do not exist.
+
 ## Configure the workspace
 
 `app/config.js` in the master, or `config.js` in a generated client, accepts an optional `studio` object. Omit it for the legacy defaults: Screens landing page, switchable Studio appearance, visible Design library, and expanded sidebar. New templates opt into Overview and a collapsible sidebar. Paths inside the configuration remain relative to the browser root, so an app module is still `./apps/daylight.js`.
@@ -131,11 +149,12 @@ Studio appearance and app appearance are separate. A reference app should only e
   "headerTitle": "Example review",
   "headerSubtitle": "Draft experience",
   "showDesignLibrary": true,
-  "sidebar": { "collapsible": true, "scope": "First journey" }
+  "sidebar": { "collapsible": true, "scope": "First journey" },
+  "about": { "preparedFor": "Client", "preparedBy": "Your name", "date": "October 2026", "scope": "Onboarding", "note": "Optional review instructions." }
 }
 ```
 
-`defaultView` accepts `overview`, `screens`, `map`, or `library`, falling back to Screens when the requested view is hidden. Optional `appearance: "light"` or `"dark"` fixes only the Studio appearance and hides its switch. Omit it to allow switching. Optional `icon: "./apps/icon.svg"` displays a local workspace icon; include the asset in the instance and export inventories. `headerTitle` and `headerSubtitle` affect the workspace heading, while `studioName` names the workspace. Supported settings survive import and export. Unknown settings are rejected so configuration mistakes are visible.
+`defaultView` accepts `overview`, `findings`, `screens`, `map`, or `library`, falling back to Screens when the requested view is hidden. Optional `about` frames the review at the top of Overview for people who open the link without a walkthrough; every field is optional, and the default note explains how to switch states and that everything is simulated. Optional `appearance: "light"` or `"dark"` fixes only the Studio appearance and hides its switch. Omit it to allow switching. Optional `icon: "./apps/icon.svg"` displays a local workspace icon; include the asset in the instance and export inventories. `headerTitle` and `headerSubtitle` affect the workspace heading, while `studioName` names the workspace. Supported settings survive import and export. Unknown settings are rejected so configuration mistakes are visible.
 
 ## Preview on a phone
 

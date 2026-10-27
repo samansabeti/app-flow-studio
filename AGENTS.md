@@ -50,6 +50,7 @@ Start with the smallest complete journey. Add distinct states when they clarify 
 - `npm run create-instance -- ../client-app-flow --name "Client App Flow" --app-name "Client" --port 8004` creates an independent Existing/Future instance and refuses an existing destination.
 - In a generated instance, keep `instance.json` synchronized with required app content and assets. `npm run export-share` exports only that explicit inventory and the browser runtime.
 - Optional `instance.json.exportFiles` narrows the export and phone-preview inventory; preserve active modules, styles, icons, assets, and third-party license notices. Dynamically computed asset paths still require manual inventory review.
+- In an instance, `npm run draft-existing -- <folder>` drafts the Existing module from screenshots, and `npm run share` publishes to Vercel (outward-facing; needs explicit authorization of project and audience). Findings live in the registry entry's `findings` module.
 - `npm run dev:phone` explicitly enables a private-LAN preview with a local QR page. Keep `npm run dev` loopback-only. Never enable LAN mode implicitly.
 - Keep client screenshots and identifiers out of the reusable master and fresh templates.
 - Generated projects are independent copies; never claim automatic inheritance of later master updates.
