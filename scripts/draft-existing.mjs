@@ -10,11 +10,11 @@ const source = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const usage = 'Usage: npm run draft-existing -- <screenshot-folder> [--force]\n  Copies .png/.jpg/.webp captures into apps/assets/existing/ and drafts apps/existing.js.\n  --force replaces an apps/existing.js that is no longer the untouched scaffold.';
 const scaffoldMarker = 'An unreviewed Existing audit scaffold';
 const findingsMarker = 'Placeholder. Replace with a one-sentence summary';
-const stylesheet = `/* Screenshot evidence. Hotspots are invisible until focused or hovered. */
+const stylesheet = `/* Screenshot evidence. Hotspots are invisible until hovered or focused; pressing anywhere on the screen reveals them all. */
 .phone .shot-screen { position: relative; overflow: hidden; background: #000; }
 .phone .shot-image { display: block; width: 100%; height: 100%; object-fit: contain; }
 .phone .shot-hotspot { position: absolute; padding: 0; border: 0; border-radius: 6px; background: transparent; }
-.phone .shot-hotspot:hover { background: rgb(0 120 255 / .12); }
+.phone .shot-hotspot:hover, .phone .shot-screen:active .shot-hotspot { background: rgb(0 120 255 / .14); }
 .phone .shot-hotspot:focus-visible { outline: 2px solid #0a66ff; outline-offset: 1px; }
 `;
 const emptyFindings = `// Audit findings. Each finding links Existing evidence cards to the Future cards that address it.
@@ -50,11 +50,16 @@ const title = name => name.replace(/[-_]+/g, ' ').replace(/^\d+\s*/, '').replace
 
 function moduleText(shots, frame) {
   return `// Existing audit drafted from screenshots by npm run draft-existing.
-// Edit SHOTS only. Look at each image, then fill in:
+// Edit SHOTS and JOURNEYS only. Look at each image, then fill in:
 //   title      what the screen is, from its visible content
-//   hotspots   { label, box: [left%, top%, width%, height%], to: 'route' } for captured transitions,
-//              or { label, box, note: 'Outcome not captured.' } when the result was not recorded
-//   approach / rationale   one sentence each: what the screen does, and what the evidence shows
+//   hotspots   one for EVERY visible control (buttons, tabs, rows, toggles, close/back), so the
+//              prototype clicks like production. box is [left%, top%, width%, height%]. Then one of:
+//                to: 'route'   opens the captured screen the control leads to
+//                back: true    returns to the previous screen (Back, Close, Cancel, Done)
+//                note: '...'   the outcome was not captured; the note is shown instead
+//   next       optional route for a screen with nothing to tap (loading, generating) that the following
+//              capture shows it moving on to by itself; the prototype advances after a moment
+//   approach / rationale   one sentence each: what the screen shows, and what the evidence shows
 // Never describe behavior the screenshots do not show. Put problems in findings.js.
 const APP_ID = ${JSON.stringify(shots.appId)};
 const APP_NAME = ${JSON.stringify(shots.appName)};
@@ -72,12 +77,18 @@ ${shots.items.map(shot => `  {
   },`).join('\n')}
 ];
 
+// Ordered journeys for the Flow map. Each step is labelled with the hotspot that leads to the next
+// screen, or marked "transition not captured" when no captured control connects them.
+const JOURNEYS = [];
+
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const action = (shot, index) => \`\${shot.route}--\${index}\`;
 const hotspot = (shot, spot, index) => \`<button type="button" class="shot-hotspot" data-action="\${action(shot, index)}" aria-label="\${esc(spot.label)}" style="left:\${spot.box[0]}%;top:\${spot.box[1]}%;width:\${spot.box[2]}%;height:\${spot.box[3]}%"></button>\`;
 const screen = shot => () => \`<div class="app-screen shot-screen"><img class="shot-image" src="\${shot.image}" alt="\${esc(shot.title)} (captured screen)" width="\${shot.size.width}" height="\${shot.size.height}">\${shot.hotspots.map((spot, index) => hotspot(shot, spot, index)).join('')}</div>\`;
 const boards = [...new Set(SHOTS.map(shot => shot.board))];
-const links = SHOTS.flatMap(shot => shot.hotspots.filter(spot => spot.to).map(spot => ({ from: shot.route, to: spot.to, label: spot.label })));
+const auto = 'Continues automatically';
+const links = SHOTS.flatMap(shot => [...shot.hotspots.filter(spot => spot.to).map(spot => ({ from: shot.route, to: spot.to, label: spot.label })),
+  ...(shot.next ? [{ from: shot.route, to: shot.next, label: auto }] : [])]);
 
 export default {
   identity: { id: APP_ID, name: APP_NAME, tagline: 'Captured evidence.', description: 'Screens captured from the current product.', version: 'Existing · Screenshots' },
@@ -92,19 +103,28 @@ export default {
   SCREENS: Object.fromEntries(SHOTS.map(shot => [shot.route, screen(shot)])),
   OVERLAYS: {},
   handlers: Object.fromEntries(SHOTS.flatMap(shot => shot.hotspots.map((spot, index) => [action(shot, index),
-    ctx => spot.to ? ctx.go(spot.to) : ctx.toast(spot.note || 'This outcome was not captured.')]))),
+    ctx => spot.to ? ctx.go(spot.to) : spot.back ? ctx.back() : ctx.toast(spot.note || 'This outcome was not captured.')]))),
   ACTIONS: Object.fromEntries(SHOTS.flatMap(shot => shot.hotspots.map((spot, index) => [action(shot, index),
-    { label: spot.label, description: spot.to ? \`Captured transition to \${SHOTS.find(item => item.route === spot.to)?.title || spot.to}.\` : (spot.note || 'This outcome was not captured.') }]))),
+    { label: spot.label, description: spot.to ? \`Opens \${SHOTS.find(item => item.route === spot.to)?.title || spot.to}.\` : spot.back ? 'Returns to the previous screen.' : (spot.note || 'This outcome was not captured.') }]))),
   NAV: boards.map(board => ({ id: board.toLowerCase().replace(/[^a-z0-9]+/g, '-'), title: board, description: 'Screenshots of the current product.', cards: SHOTS.filter(shot => shot.board === board).map(shot => ({
-    id: shot.route, title: shot.title, route: shot.route, kind: 'ready', status: 'Captured',
+    id: shot.route, title: shot.title, route: shot.route, kind: shot.next ? 'loading' : 'ready', status: 'Captured',
     match: state => state.route === shot.route,
     how: links.filter(link => link.to === shot.route).map(link => \`\${link.label} on \${SHOTS.find(item => item.route === link.from).title}\`).join('; ') || 'Open this capture directly.',
     ...(shot.approach ? { approach: shot.approach } : {}), ...(shot.rationale ? { rationale: shot.rationale } : {}),
     actions: shot.hotspots.map((spot, index) => action(shot, index)),
   })) })),
-  FLOWS: links.length
-    ? links.map(link => ({ title: \`\${SHOTS.find(item => item.route === link.from).title} → \${SHOTS.find(item => item.route === link.to)?.title || link.to}\`, steps: [{ card: link.from, label: link.label }, { card: link.to }] }))
+  FLOWS: JOURNEYS.length
+    ? JOURNEYS.map(journey => ({ title: journey.title, steps: journey.steps.map((route, index) => {
+      const next = journey.steps[index + 1];
+      const shot = SHOTS.find(item => item.route === route);
+      const label = shot?.next === next ? auto : shot?.hotspots.find(item => item.to === next)?.label;
+      return { card: route, ...(next ? { label: label || 'Next capture (transition not captured)' } : {}) };
+    }) }))
     : [{ title: 'Capture order', steps: SHOTS.map(shot => ({ card: shot.route, label: 'Browse to next capture' })) }],
+  onEnter(ctx) {
+    const shot = SHOTS.find(item => item.route === ctx.state.route);
+    if (shot?.next) ctx.advance(1200, () => ctx.go(shot.next));
+  },
 };
 `;
 }
@@ -150,7 +170,7 @@ export async function draftExisting(args = []) {
   await writeFile(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`);
   console.log(`Drafted apps/existing.js from ${items.length} screenshots (${frame.width}×${frame.height} frame).
 Copied captures to apps/assets/existing/ and added them to instance.json.
-Next: ask Claude to "complete the Existing draft": name each screen, map hotspots, write notes, and draft findings in apps/findings.js from what the screenshots show.`);
+Next: ask Claude to "complete the Existing draft": name and order each screen, map every visible control, and add journeys for the Flow map.`);
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   try { await draftExisting(process.argv.slice(2)); }

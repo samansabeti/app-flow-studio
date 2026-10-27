@@ -76,7 +76,7 @@ Requested local edits can proceed without separate plan or diff approval; teachi
 
 ## Audit workflow
 
-1. Draft Existing from screenshots: \`npm run draft-existing -- <folder>\`, then ask Claude to complete the draft (screen names, hotspots, notes, findings) from what the images show.
+1. Draft Existing from screenshots: \`npm run draft-existing -- <folder>\`, then ask Claude to complete the draft: order and name the screens, map every visible control so Existing clicks like production, and add Flow map journeys.
 2. Write findings in apps/findings.js: severity, problem, recommendation, and the Existing and Future card IDs they connect. They appear in the Findings view and in Present mode.
 3. Build the Future proposal in apps/future.js. Inside a prototype, Existing / Future jumps between paired cards.
 4. Frame the review with \`studio.about\` in config.js, then publish with \`npm run share -- --project <vercel-project> [--password]\` once publication is authorized. Without --password the link is public.
