@@ -69,7 +69,7 @@ To import an existing app, add `--from <source-folder> --manifest <manifest.json
 3. Start client work from that client's project. Keep reusable product work here.
 4. Use the configured **Run** action to start the local server. In Codex, **Command-Shift-D** runs the primary action.
 
-Local action settings are prepared in `.codex/environments/environment.toml`. Run starts the loopback preview; Phone preview explicitly enables the LAN preview; Check validates the app. Generated instances also have an Export action. If the actions are not picked up automatically, add the same commands through **Settings → Local environments** for that folder. Project registration and UI action detection must be confirmed in Codex; creating the files alone does not confirm either.
+Local action settings are prepared in `.codex/environments/environment.toml`. Run starts the loopback preview; Phone preview explicitly enables the LAN preview; Check validates the app. Generated instances also have an Export action. If the actions are not picked up automatically, add the same commands through **Settings → Local environments** for that folder. Confirm project registration and UI action detection during setup; creating the files alone does not confirm either. Reuse working setup for routine edits.
 
 A chat is a conversation with a working folder. A local project gives that folder a persistent name and repeatable commands. A running server is the process that makes its `localhost` URL available. Opening a chat does not start that server. Registering a new project does not change an old chat's working folder.
 
@@ -211,8 +211,12 @@ Use the route when discussing the whole screen, and the unique card ID when spec
 
 Update app-owned tokens and registered stylesheets, keeping each supported appearance readable. Keep Design library specimens consistent with the actual screens. Screenshot references retain their source proportions and pixels. Use sampled values only when clearly labeled as approximate. Change `app/studio.css` (or `studio.css` in a generated client) only for the surrounding Studio interface.
 
-## Validate before handing off
+## Routine edits and verification
 
-Run `npm run check` and `npm run build` in the master, then inspect affected screens and interactions in a browser. Generated clients use `npm run check` and `npm run export-share`. Exercise Back, Reset, forms, overlays, timer cancellation, keyboard navigation, supported appearances, and a narrow viewport. Compare Existing source frames to their assets. Check that map labels and context reflect working transitions. Scripted checks do not replace visual review; report when browser verification is unavailable.
+Requested local edits can proceed without separate plan or diff approval. Teaching and step-by-step checkpoints are opt-in. Implement the change, run the relevant check, and show the result; group local commits around useful milestones.
+
+For app-code or configuration changes, run `npm run check` and inspect the changed view or behavior. Broaden coverage when shared runtime or tooling changes affect other paths. Check Back, Reset, forms, timers, keyboard access, appearances, and narrow layouts where relevant. Documentation-only edits need content review, not browser testing. Avoid a fresh validation-log entry or repeated setup audit for every small edit.
+
+Build or export when reviewing a bundle, changing export/build behavior, or preparing to publish. Before publication, review the output inventory, affected interface, and intended audience, then verify the authorized deployment. Pushing a branch connected to automatic deployment counts as publishing. Report checks actually performed and any material gaps.
 
 This is a prototype and evidence-review workspace, not a production integration. Captured claims are source evidence; proposed copy is a design choice, not a verified product promise.

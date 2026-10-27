@@ -2,12 +2,14 @@
 
 ## Purpose
 
-Build the reusable Studio product and safely generate independent client instances. Each client audits Existing evidence and proposes a Future experience through Screens, Flow map, Design library, and a live prototype. Read `README.md`, `app/config.js`, and the active module under `app/apps/` before editing the master. Use `docs/KICKOFF.md` when starting a new app. Generated clients retain their flat layout and their own instructions.
+Build the reusable Studio product and safely generate independent client instances. Each client audits Existing evidence and proposes a Future experience through Screens, Flow map, Design library, and a live prototype. When new to this project, read `README.md`, `app/config.js`, and the relevant module under `app/apps/`; reuse that context for subsequent edits. Use `docs/KICKOFF.md` when starting a new app. Generated clients retain their flat layout and their own instructions.
+
+Requested routine local edits are authorized: implement, check the affected behavior, and report the result without a separate plan, diff approval, or teaching step. Ask only for a material ambiguity or an action outside the authorized scope. Local commits may group completed work; a commit after every small edit is unnecessary.
 
 ## Boundaries
 
 - Work in this project only. Leave the reusable master unchanged when working in a generated app copy.
-- Keep everything local. Do not deploy, publish, connect accounts, send messages, or add real network operations unless the user explicitly requests them.
+- Keep everything local. Do not deploy, publish, connect accounts, send messages, or add real network operations unless the user explicitly requests them. A push that triggers automatic deployment is a publishing action; confirm the intended target and audience are covered by that authorization.
 - Use English copy, fictional identities, and clearly simulated data for invented examples. Narrow exception: when the user requests a faithful screenshot reference, preserve the supplied pixels and text in local copies, leaving originals unchanged. Preserve source proportions and native chrome; do not redraw obscured UI, fabricate missing states, or add unsupported appearances. This does not authorize publishing the source material.
 - Distinguish screenshot-confirmed content from locally linked transitions. Controls with uncaptured outcomes should explain the limit instead of fabricating production behavior. Never invent implementation claims or describe a control that does not work.
 - When the user requests a Future redesign, create proposed editable screens and interactions in a separate design-state module. Label them as drafts, keep Existing screenshots intact, and distinguish proposed product copy from confirmed production behavior.
@@ -53,6 +55,13 @@ Start with the smallest complete journey. Add distinct states when they clarify 
 - Generated projects are independent copies; never claim automatic inheritance of later master updates.
 - Do not claim that writing local action settings has registered the folder as a Codex project or proven UI detection.
 
-Before finishing, run the checks and inspect the running browser. Open every affected card; exercise every affected action, back/reset, keyboard navigation, forms, overlays, and timers. Verify supported app appearances, the Design library, a narrow viewport, and independent studio appearance. Confirm preferences survive app switches and reloads. For screenshot references, verify asset fidelity, source proportions, hotspot placement, and accurate feedback for missing outcomes. Check console errors and confirm that context and overview connections match the interaction. Do not claim browser verification when it was not performed.
+Match verification to the change:
+
+- Copy or styling: inspect the affected view and any layout or appearance it changes. Behavior: exercise the changed path and its relevant recovery or navigation. Run `npm run check` for app-code or configuration changes.
+- Shared runtime, generator, export, or hosting changes: add regression checks for the contracts and consumers they affect. Check forms, timers, keyboard access, appearances, narrow layouts, or source fidelity when those are implicated; do not run the entire browser matrix for an unrelated edit.
+- Documentation-only changes need a content/diff review, not a build, server, or browser. Generated-document changes also need a syntax check and a sample generated client.
+- Before publishing, build or export, review the output inventory and privacy boundary, and verify the authorized deployment. Routine local edits do not need a fresh export, validation-log entry, setup audit, or teaching walkthrough. Revisit Run/project registration only when new, changed, or broken.
+
+Stop once the relevant checks pass unless new evidence requires more work. Report actual verification and material gaps honestly.
 
 Report the working preview URL, actual project directory, concise change summary, and material limitations. Leave a usable local preview running when practical.

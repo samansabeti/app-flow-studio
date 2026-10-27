@@ -55,7 +55,7 @@ An independent local workspace for ${opts.appName}, generated with App Flow Stud
 
 Requires Node.js 18 or later. Run \`npm run dev\`; no install or build step is needed. The preview binds to 127.0.0.1, starts at port ${opts.port}, and tries the next port if busy. Open the URL printed in the terminal. Stop with Ctrl+C. Use \`npm run dev -- --port 0\` to choose an available port.
 
-Add this folder as a Codex local project. The included environment file defines Run, Phone preview, Check, and Export actions; action detection depends on the host and has not been verified by the generator.
+Add this folder as a Codex local project once. The included environment file defines Run, Phone preview, Check, and Export actions; action detection depends on the host and has not been verified by the generator. Reuse working setup for subsequent edits.
 
 Phone preview is opt-in: \`npm run dev:phone\` binds to an available private LAN address and prints a local QR page. Open that page on this computer, then scan it from a phone on the same trusted network. Browser resources are restricted to the static runtime and the exported app inventory. Anyone on that network who can reach the address can view the prototype while this separate server is running; stop it with Ctrl+C. The ordinary Run command stays loopback-only. Run \`npm run check:phone\` to check server access rules and QR generation.
 
@@ -69,7 +69,9 @@ Keep screen markup, action metadata, context, and journeys aligned. Start card a
 
 Every visible control should work or explain the intentionally unbuilt outcome. All interactions are simulated locally. Keep loading and saving as separate cards. Use \`ctx.advance(milliseconds, callback)\` for their automatic completion; each loading card advances once while the prototype is open. The callback synchronously applies the result with \`ctx.set\`, \`ctx.go\`, or both.
 
-Reset or R restores the latest loading snapshot, otherwise the selected card. Back restores the loading state before completion, including its simulated data and entered draft, and holds it for inspection. Backward card browsing also holds loading; close and reopen the prototype to replay. Use \`ctx.later\` for incidental timed updates. Both timer methods cancel pending work on reset, back, navigation, and closing the prototype. Run \`npm run check\` after changes, then inspect affected interactions and layouts in a browser. Automated checks do not establish visual quality or production behavior.
+Reset or R restores the latest loading snapshot, otherwise the selected card. Back restores the loading state before completion, including its simulated data and entered draft, and holds it for inspection. Backward card browsing also holds loading; close and reopen the prototype to replay. Use \`ctx.later\` for incidental timed updates. Both timer methods cancel pending work on reset, back, navigation, and closing the prototype.
+
+Requested local edits can proceed without separate plan or diff approval; teaching is opt-in. Run \`npm run check\` for app-code or configuration changes and inspect the changed view or behavior. Broaden coverage only where shared runtime or tooling is affected. Documentation-only edits need content review, not a browser or export. Avoid per-edit validation logs and repeated setup audits. Automated checks do not establish visual quality or production behavior.
 
 ## Local static export
 
@@ -85,11 +87,12 @@ instance.json records the generator version, instance ID, source kind, registry,
 `);
   files.set('AGENTS.md', `# ${opts.name} instructions
 
-Read README.md, config.js, instance.json, and the active app module before changing this client. Use KICKOFF.md for the working brief.
+When new to this client, read README.md, config.js, instance.json, and the active app module; reuse that context for subsequent edits. Use KICKOFF.md for the working brief.
 
+- Proceed with requested routine local edits without separate plan or diff approval. Teaching is opt-in; ask only for material ambiguities or actions outside the authorized scope. Group local commits around useful milestones.
 - Work in this client folder. Do not edit the product master or another client.
 - Existing holds source evidence; Future holds proposed changes. Preserve supplied originals and distinguish screenshot-confirmed content from simulated transitions and draft copy. Never fabricate missing evidence.
-- Keep behavior local unless the user explicitly authorizes a real integration or publication. Do not authenticate, purchase, upload, deploy, or send messages merely because this is a prototype.
+- Keep behavior local unless the user explicitly authorizes a real integration or publication. A push that triggers deployment is publication; confirm the target and audience are covered by that authorization. Do not authenticate, purchase, upload, deploy, or send messages merely because this is a prototype.
 - Keep plain HTML/CSS/JavaScript and the dependency-free server. Shared studio behavior belongs in studio.js/studio.css; client state, screens, tokens, actions, overlays, boards, and journeys belong in the app module.
 - Use pure renderers. Use ctx.set, ctx.go, ctx.back, ctx.overlay, ctx.toast, and managed timers for behavior. Keep ACTIONS, NAV context, and FLOWS consistent with working controls.
 - Keep loading and saving as separate cards. Use ctx.advance for automatic completion once per loading card per open prototype, with a synchronous completion callback. Reset/R restores the latest loading snapshot or selected card; Back and backward card browsing hold restored loading, including draft values. Close and reopen to replay. Use ctx.later for incidental timed updates.
@@ -98,7 +101,8 @@ Read README.md, config.js, instance.json, and the active app module before chang
 - Preserve independent Studio and App appearances, keyboard access, readable contrast, and useful focus behavior. Keep source frame proportions and native chrome intact when using screenshots.
 - Add client assets and modules to instance.json’s explicit files list, and its optional exportFiles subset when needed by the browser. Every active module, stylesheet, icon, and asset must be exported. Never add secrets, another client, source directories, or tool/editor files. Keep config.js as a JSON-compatible export default object.
 - Run stays loopback-only. Phone preview is a separate opt-in command for a trusted private LAN; it makes allowlisted app content available to reachable devices while running. Do not start it unless requested.
-- Run npm run check and inspect affected screens, actions, reset/back, timers, overlays, keyboard navigation, and narrow layouts when a browser is available. State honestly when browser verification was unavailable.
+- For app-code or configuration changes, run npm run check and inspect the changed view or behavior. Exercise reset/back, timers, overlays, keyboard access, appearances, and narrow layouts only where affected. Broaden regression coverage for shared runtime or tooling changes. Documentation-only edits need content review; generated-document changes also need a syntax check and sample client. Report actual checks and material gaps honestly.
+- Reuse working Run/project setup. Routine edits do not need a fresh export, validation-log entry, or setup audit. Stop when relevant checks pass unless new evidence requires more work.
 - npm run export-share creates a local static bundle only. Do not interpret export as permission to publish. Change source files and export again instead of manually editing dist or its ownership record.
 
 Report the actual preview URL, client directory, changes, checks run, and material limits.
@@ -107,7 +111,7 @@ Report the actual preview URL, client directory, changes, checks run, and materi
 
 Use this brief to continue this client instance:
 
-> Work only in this ${opts.name} folder. Read README.md, AGENTS.md, config.js, instance.json, and the active app modules first. Preserve Existing evidence and build proposals in Future. Keep the flow map, boards, interactions, design library, and contextual notes consistent. Start with the smallest complete journey. Keep loading and saving as separate cards, using ctx.advance for automatic completion once per open prototype and ctx.later for incidental timers. Reset/R and Back restore held loading for inspection; closing and reopening permits replay. Use fictional data for invented examples, explicit evidence limits for supplied screenshots, and local simulations for all behavior. Keep the dependency-free runtime. Run checks and review affected interactions before reporting completion. Do not publish or connect external services without explicit authorization.
+> Work only in this ${opts.name} folder. Read the project instructions and relevant source once, then reuse that context. Proceed with requested local edits without separate plan or diff approval; teaching is opt-in. Preserve Existing evidence and build proposals in Future. Keep the flow map, boards, interactions, design library, and contextual notes consistent. Start with the smallest complete journey. Keep loading and saving as separate cards, using ctx.advance for automatic completion once per open prototype and ctx.later for incidental timers. Reset/R and Back restore held loading for inspection; closing and reopening permits replay. Use fictional data for invented examples, explicit evidence limits for supplied screenshots, and local simulations for all behavior. Keep the dependency-free runtime. Check the changed behavior, with broader regression only where shared code or tooling is affected. Documentation-only edits need content review. Reuse working Run/project setup. Do not publish, push a deployment-triggering branch, or connect external services without explicit authorization covering the target and audience.
 
 ## Client brief
 

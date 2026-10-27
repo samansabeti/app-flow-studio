@@ -42,4 +42,6 @@ For each screen or overlay, write one short `approach` sentence and one short `r
 
 Run remains loopback-only. Use Phone preview explicitly when testing on a phone on the same trusted network; its QR page is generated locally. Stop it when finished.
 
-Run checks and inspect the affected flows in a browser. Report the actual preview URL and any unverified behavior. Export only after checking its contents. Publishing and inviting reviewers require the user's intended audience to be clear.
+Proceed with requested local edits without separate plan or diff approval; teaching is opt-in. Check the changed behavior and broaden coverage only where shared code or tooling is affected. Documentation-only edits need content review. Reuse working project and Run setup. Report the actual preview URL when relevant and any material unverified behavior.
+
+Build or export when a bundle is needed, and review its contents before publishing. Publishing, pushes that trigger deployment, and inviting reviewers require explicit authorization covering the target and intended audience.
