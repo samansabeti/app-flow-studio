@@ -30,7 +30,7 @@ function options(args, legacy) {
   return result;
 }
 function defaultManifest(appName) {
-  return { app: { id: slug(appName), name: appName, module: './apps/existing.js', stylesheet: './apps/existing.css', variants: [
+  return { app: { id: slug(appName), name: appName, module: './apps/existing.js', stylesheet: './apps/existing.css', findings: './apps/findings.js', variants: [
     { id: 'existing', name: 'Existing', module: './apps/existing.js', stylesheet: './apps/existing.css' },
     { id: 'future', name: 'Future', module: './apps/future.js', stylesheet: './apps/future.css' }
   ], defaultVariant: 'existing' }, files: TEMPLATE_FILES.map(file => `apps/${file}`) };
@@ -148,7 +148,7 @@ export async function createInstance(args, { legacy = false } = {}) {
     manifest = validateManifest(defaultManifest(opts.appName));
     for (const file of TEMPLATE_FILES) {
       let bytes = await safeRead(root, `templates/client/${file}`);
-      if (file.endsWith('.js')) {
+      if (['existing.js', 'future.js'].includes(file)) {
         let text = bytes.toString('utf8');
         for (const [sentinel, value] of [['__APP_ID__', manifest.app.id], ['__APP_NAME__', opts.appName]]) {
           if (!text.includes(JSON.stringify(sentinel))) fail(`Template ${file} is missing ${sentinel}.`);

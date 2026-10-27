@@ -2,9 +2,9 @@ import { lstat, readFile, readdir, realpath, mkdir, writeFile } from 'node:fs/pr
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 
-export const STUDIO_VERSION = '1.2.0';
+export const STUDIO_VERSION = '1.3.0';
 export const STATIC_CORE = ['index.html', 'studio.js', 'studio.css', 'app.css', 'ui.js'];
-export const TEMPLATE_FILES = ['existing.js', 'future.js', 'existing.css', 'future.css'];
+export const TEMPLATE_FILES = ['existing.js', 'future.js', 'existing.css', 'future.css', 'findings.js'];
 export const INSTANCE_CORE = [...STATIC_CORE, 'server.mjs', 'scripts/check.mjs',
   'scripts/create-instance.mjs', 'scripts/create-app.mjs', 'scripts/export-share.mjs',
   'scripts/instance-files.mjs', 'scripts/project-paths.mjs', 'scripts/check-phone-preview.mjs', 'scripts/qr-code.mjs',
@@ -87,9 +87,10 @@ export function validateStudioConfig(studio) {
     headerSubtitle: 'string',
     icon: 'string',
     showOverview: 'boolean',
-    defaultView: ['overview', 'screens', 'map', 'library'],
+    defaultView: ['overview', 'findings', 'screens', 'map', 'library'],
     showDesignLibrary: 'boolean',
     sidebar: { collapsible: 'boolean', scope: 'string' },
+    about: { preparedFor: 'string', preparedBy: 'string', date: 'string', scope: 'string', note: 'string' },
   }, 'studio');
   if (result.icon !== undefined) {
     const file = contentFile(result.icon.replace(/^\.\//, ''));
@@ -124,11 +125,12 @@ export function validateManifest(value, nameOverride) {
   }
   function entry(input, variant = false) {
     if (!input || typeof input !== 'object' || Array.isArray(input)) fail('Invalid app registry entry.');
-    const allowed = new Set(variant ? ['id', 'name', 'module', 'stylesheet'] : ['id', 'name', 'module', 'stylesheet', 'variants', 'defaultVariant']);
+    const allowed = new Set(variant ? ['id', 'name', 'module', 'stylesheet'] : ['id', 'name', 'module', 'stylesheet', 'findings', 'variants', 'defaultVariant']);
     for (const key of Object.keys(input)) if (!allowed.has(key)) fail(`Unsupported registry field: ${key}`);
     if (typeof input.id !== 'string' || !/^[a-z0-9][a-z0-9-]{0,79}$/.test(input.id)) fail('App and variant IDs must use lowercase letters, numbers, and hyphens.');
     const result = { id: input.id, name: label(!variant && nameOverride ? nameOverride : input.name), module: modulePath(input.module, 'Module', /\.(?:m?js)$/) };
     if (input.stylesheet !== undefined) result.stylesheet = modulePath(input.stylesheet, 'Stylesheet', /\.css$/);
+    if (!variant && input.findings !== undefined) result.findings = modulePath(input.findings, 'Findings module', /\.(?:m?js)$/);
     if (!variant && input.variants !== undefined) {
       if (!Array.isArray(input.variants) || !input.variants.length) fail('Variants must be a nonempty array.');
       result.variants = input.variants.map(item => entry(item, true));

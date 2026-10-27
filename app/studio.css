@@ -646,3 +646,70 @@ kbd { padding: 2px 4px; margin: 0 2px; border: 1px solid var(--line); border-rad
   #focus:not([data-immersive="true"]) .focus-footer { position: absolute; bottom: 8px; right: max(24px, env(safe-area-inset-right, 0px)); width: 220px; padding: 0; border: 0; }
   .mobile-step-nav { gap: 8px; }
 }
+
+/* Review framing, findings, comparison, and presenter mode. */
+.overview-about { display: grid; gap: 14px; max-width: 720px; margin-bottom: 36px; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
+.overview-about dl { display: flex; flex-wrap: wrap; gap: 10px 32px; margin: 0; }
+.overview-about dt { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.overview-about dd { margin: 2px 0 0; font-size: 13px; line-height: 1.5; }
+.overview-about p { max-width: 70ch; color: var(--muted); font-size: 13px; line-height: 1.65; }
+.overview-findings { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
+.overview-findings h2 { font-size: 14px; font-weight: 600; line-height: 1.5; }
+.overview-findings p { margin-top: 4px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.overview-findings-actions { display: flex; gap: 4px; margin: 10px 0 0 -8px; }
+.overview-findings-actions .text-button { color: var(--ink); font-size: 13px; }
+
+.severity { display: inline-block; padding: 2px 6px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); font-size: 10px; font-weight: 500; line-height: 1.5; white-space: nowrap; }
+.severity-high { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+.severity-medium { border-color: var(--muted); color: var(--ink); }
+.findings-summary { max-width: 70ch; margin: -12px 0 28px; color: var(--muted); font-size: 14px; line-height: 1.7; }
+.findings-list { display: grid; max-width: 820px; margin: 0; padding: 0; list-style: none; }
+.finding { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 0 12px; padding: 22px 0; border-top: 1px solid var(--line); }
+.finding:last-child { border-bottom: 1px solid var(--line); }
+.finding-number { color: var(--muted); font: 12px/26px ui-monospace, monospace; }
+.finding-heading { display: flex; align-items: baseline; gap: 10px; }
+.finding-heading h2, .present-text h2 { font-size: 16px; font-weight: 600; line-height: 1.5; letter-spacing: -.2px; }
+.finding-problem { max-width: 70ch; margin-top: 8px; font-size: 14px; line-height: 1.7; }
+.finding-recommendation { max-width: 70ch; margin-top: 10px; color: var(--muted); font-size: 14px; line-height: 1.7; }
+.finding-recommendation strong { margin-right: 4px; color: var(--ink); font-weight: 500; }
+.finding-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; margin-top: 14px; }
+.finding-footer > .text-button { margin-left: auto; }
+.finding-links { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.finding-links > span { margin-right: 4px; color: var(--muted); font-size: 11px; }
+.finding-card-link { padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; line-height: 1.5; }
+.finding-card-link:hover { border-color: var(--muted); }
+.compare-toggle { margin-right: 8px; }
+
+#present { width: 100vw; max-width: none; height: 100dvh; max-height: none; margin: 0; padding: 0; border: 0; background: var(--page); color: var(--ink); }
+#present[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+#present::backdrop { background: #0006; }
+.present-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; padding: 12px 24px; border-bottom: 1px solid var(--line); }
+#present-position { color: var(--muted); font-size: 12px; }
+.present-paging { display: flex; gap: 4px; }
+.present-body { display: flex; align-items: center; justify-content: center; gap: 56px; min-height: 0; padding: 32px; overflow: auto; }
+.present-text { display: grid; align-content: start; justify-items: start; gap: 4px; width: min(380px, 100%); flex-shrink: 0; }
+.present-text h2 { margin-top: 10px; font-size: 22px; line-height: 1.35; letter-spacing: -.4px; }
+.present-frames { display: flex; gap: 28px; flex-shrink: 0; }
+.present-frame { display: grid; gap: 12px; margin: 0; }
+.present-frame figcaption { display: grid; gap: 2px; font-size: 12px; font-weight: 500; line-height: 1.5; }
+.present-frame figcaption span { color: var(--muted); font-size: 11px; font-weight: 400; }
+.present-open { position: relative; display: block; padding: 0; overflow: hidden; border-radius: 20px; box-shadow: 0 0 0 3px #2b2b2b; }
+.present-open:hover { outline: 1px solid var(--muted); outline-offset: 7px; }
+.present-thumb .phone { transform-origin: top left; }
+.present-thumb * { pointer-events: none; animation: none !important; transition: none !important; }
+.present-hint { padding: 12px 24px 16px; color: var(--muted); font-size: 11px; text-align: center; }
+.present-hint span { margin: 0 8px; }
+
+@media (max-width: 1100px) {
+  .present-body { flex-direction: column; align-items: center; gap: 28px; }
+}
+@media (max-width: 760px) {
+  .finding { grid-template-columns: minmax(0, 1fr); }
+  .finding-number { display: none; }
+  .finding-footer > .text-button { margin-left: -8px; }
+  .compare-toggle { margin-right: 4px; }
+  .present-bar { padding: 8px 12px; }
+  .present-body { justify-content: flex-start; padding: 20px 14px; }
+  .present-frames { gap: 12px; zoom: .72; }
+  .present-hint { display: none; }
+}

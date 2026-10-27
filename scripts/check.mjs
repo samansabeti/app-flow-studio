@@ -13,6 +13,7 @@ const failures = [];
 const builtIns = new Set(['back', 'dismiss-overlay', 'dismiss-toast']);
 let checks = 0;
 let cardCount = 0;
+const cardIndex = new Map(), comparisons = [];
 
 function check(label, run) {
   checks += 1;
@@ -239,6 +240,8 @@ for (const registered of configurations) {
   check(`${prefix} unique board IDs`, () => assert.equal(new Set(app.NAV.map(board => board.id)).size, app.NAV.length));
   check(`${prefix} unique card IDs`, () => assert.equal(new Set(cards.map(card => card.id)).size, cards.length));
   const cardIDs = new Set(cards.map(card => card.id));
+  cardIndex.set(prefix, cardIDs);
+  for (const card of cards) if (card.compare !== undefined) comparisons.push({ entry: registered, prefix, card });
   for (const route of Object.keys(app.SCREENS)) {
     check(`${prefix} route ${route} has context`, () => assert.ok(cards.some(card => card.route === route), 'each route needs a state card'));
   }
@@ -330,6 +333,41 @@ for (const registered of configurations) {
       assert.ok(flow.title && Array.isArray(flow.steps) && flow.steps.length >= 2);
       for (const step of flow.steps) assert.ok(cardIDs.has(step.card), `unknown card ${step.card}`);
       for (const step of flow.steps.slice(0, -1)) assert.ok(step.label, 'each outgoing edge needs a label');
+    });
+  }
+}
+
+// Findings and comparisons connect cards across design states.
+const stateCards = (entry, state) => entry.variants ? cardIndex.get(`${entry.id}/${state}`) : cardIndex.get(entry.id);
+for (const { entry, prefix, card } of comparisons) {
+  check(`${prefix}/${card.id} compare`, () => {
+    assert.ok(entry.variants, 'compare requires design states');
+    assert.ok(typeof card.compare?.state === 'string' && typeof card.compare.card === 'string', 'compare must be { state, card }');
+    assert.ok(stateCards(entry, card.compare.state)?.has(card.compare.card), `unknown ${card.compare.state} card ${card.compare.card}`);
+  });
+}
+for (const entry of registry.apps) {
+  if (entry.findings === undefined) continue;
+  let data;
+  try { data = (await import(new URL(entry.findings, root))).default; }
+  catch (error) { failures.push(`${entry.id} findings import: ${error.message}`); continue; }
+  const states = { evidence: data?.evidenceState || 'existing', proposal: data?.proposalState || 'future' };
+  check(`${entry.id} findings`, () => {
+    assert.ok(Array.isArray(data?.items), 'findings need an items array');
+    if (data.summary !== undefined) assert.equal(typeof data.summary, 'string', 'summary must be text');
+    if (entry.variants) for (const state of Object.values(states)) assert.ok(entry.variants.some(variant => variant.id === state), `unknown design state ${state}`);
+    assert.equal(new Set(data.items.map(item => item?.id)).size, data.items.length, 'finding IDs must be unique');
+  });
+  for (const item of Array.isArray(data?.items) ? data.items : []) {
+    check(`${entry.id} finding ${item?.id}`, () => {
+      assert.ok(typeof item?.id === 'string' && item.id && typeof item.title === 'string' && item.title.trim(), 'id and title are required');
+      assert.ok(['high', 'medium', 'low'].includes(item.severity), 'severity must be high, medium, or low');
+      for (const field of ['problem', 'recommendation']) if (item[field] !== undefined) assert.equal(typeof item[field], 'string', `${field} must be text`);
+      for (const [field, state] of [['evidence', states.evidence], ['proposal', states.proposal]]) {
+        const ids = item[field] ?? [];
+        assert.ok(Array.isArray(ids), `${field} must list card IDs`);
+        for (const id of ids) assert.ok(stateCards(entry, state)?.has(id), `${field} references unknown ${state} card ${id}`);
+      }
     });
   }
 }

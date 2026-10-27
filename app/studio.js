@@ -4,8 +4,15 @@ const studioName = typeof registry.studioName === 'string' && registry.studioNam
   ? registry.studioName.trim() : 'App Flow Studio';
 const studioOptions = registry.studio || {};
 const fixedStudioAppearance = ['light','dark'].includes(studioOptions.appearance) ? studioOptions.appearance : null;
-const workspaceViews = [['overview','Overview'],['screens','Screens'],['map','Flow map'],['library','Design library']].filter(([id])=>(id !== 'overview' || studioOptions.showOverview === true) && (id !== 'library' || studioOptions.showDesignLibrary !== false));
-const defaultView = workspaceViews.some(([id])=>id === studioOptions.defaultView) ? studioOptions.defaultView : 'screens';
+const allViews = [['overview','Overview'],['findings','Findings'],['screens','Screens'],['map','Flow map'],['library','Design library']];
+// Findings come from the app's registry entry, so their view is known only after loading.
+let findings = null;
+const viewEnabled = id => (id !== 'overview' || studioOptions.showOverview === true)
+  && (id !== 'library' || studioOptions.showDesignLibrary !== false)
+  && (id !== 'findings' || Boolean(findings?.items?.length));
+const workspaceViews = () => allViews.filter(([id])=>viewEnabled(id));
+const fallbackView = () => viewEnabled(studioOptions.defaultView) ? studioOptions.defaultView : 'screens';
+const defaultView = allViews.some(([id])=>id === studioOptions.defaultView) ? studioOptions.defaultView : 'screens';
 
 // The studio owns presentation, navigation history and timer lifetime.
 // An app owns its identity, state, renderers, actions, boards and notes.
@@ -16,8 +23,10 @@ const phone = $('#live-phone');
 const content = $('#view-content');
 const params = new URLSearchParams(location.search);
 const requestedView = params.get('view');
-const initialView = workspaceViews.some(([id])=>id === requestedView) ? requestedView : (params.get('card') || location.hash.startsWith('#board-') ? 'screens' : defaultView);
+const initialView = allViews.some(([id])=>id === requestedView) ? requestedView : (params.get('card') || location.hash.startsWith('#board-') ? 'screens' : defaultView);
 let app, cards = [], selectedCard, state, history = [], currentView = initialView, appId, appVariant = null;
+// Every design state of the current app, so findings and comparisons can reach across them.
+let stateApps = new Map(), stateEntries = [];
 let search = '', kind = 'all', boardFilter = 'all', opener = null, overlayOpener = null, overlayViews = [], selectionVersion = 0;
 const timers = new Map();
 const advancedCards = new Set();
@@ -140,8 +149,8 @@ function dispatch(name, payload = {}) {
   else if (app.handlers[name]) app.handlers[name](ctx, payload);
   else throw new Error(`Missing action handler: ${name}`);
 }
-function makeState(card) {
-  const next = app.freshState();
+function makeState(card, mod = app) {
+  const next = mod.freshState();
   next.route = card.route;
   card.setup?.(next);
   return next;
@@ -151,15 +160,18 @@ function currentCard() {
     || cards.find(card => card.route === state.route && card.kind === 'ready')
     || cards.find(card => card.route === state.route);
 }
-function tokensStyle() {
-  return Object.entries(app.tokens[appTheme]).map(([key, value]) => `--app-${key.replace(/[A-Z]/g, letter => '-' + letter.toLowerCase())}:${value}`).join(';') + `;color-scheme:${appTheme}`;
+function tokensStyle(mod = app) {
+  // Another design state may support fewer appearances than the active one.
+  const theme = mod.tokens[appTheme] ? appTheme : (mod.appearances || ['light'])[0];
+  return Object.entries(mod.tokens[theme]).map(([key, value]) => `--app-${key.replace(/[A-Z]/g, letter => '-' + letter.toLowerCase())}:${value}`).join(';') + `;color-scheme:${theme}`;
 }
-function screenHTML(s) {
-  const overlay = s.overlay ? app.OVERLAYS[s.overlay]?.(s) : '';
+function screenHTML(s, mod = app) {
+  const overlay = s.overlay ? mod.OVERLAYS[s.overlay]?.(s) : '';
   const toast = s.toast ? `<div class="phone-toast" role="status"><span>${esc(s.toast)}</span><button data-action="dismiss-toast" aria-label="Dismiss message">×</button></div>` : '';
-  if (app.presentation?.edgeToEdge) return app.SCREENS[s.route](s) + toast;
-  return `<div class="statusbar" aria-hidden="true"><span>9:41</span><span class="island"></span><span class="status-icons">▴▴▴ &nbsp;◔ ▰</span></div><div class="phone-content" ${overlay ? 'inert' : ''}>${app.SCREENS[s.route](s)}</div>${overlay ? `<div class="phone-overlay"><button class="overlay-backdrop" data-action="dismiss-overlay" aria-label="Dismiss overlay" tabindex="-1"></button>${overlay}</div>` : ''}${toast}<div class="home-ind" aria-hidden="true"></div>`;
+  if (mod.presentation?.edgeToEdge) return mod.SCREENS[s.route](s) + toast;
+  return `<div class="statusbar" aria-hidden="true"><span>9:41</span><span class="island"></span><span class="status-icons">▴▴▴ &nbsp;◔ ▰</span></div><div class="phone-content" ${overlay ? 'inert' : ''}>${mod.SCREENS[s.route](s)}</div>${overlay ? `<div class="phone-overlay"><button class="overlay-backdrop" data-action="dismiss-overlay" aria-label="Dismiss overlay" tabindex="-1"></button>${overlay}</div>` : ''}${toast}<div class="home-ind" aria-hidden="true"></div>`;
 }
+const staticMarkup = html => html.replace(/\s(?:id|for|aria-labelledby|aria-describedby)="[^"]*"/g, '');
 function applyStudioTheme() {
   if (fixedStudioAppearance) studioTheme = fixedStudioAppearance;
   document.documentElement.dataset.theme = studioTheme;
@@ -211,8 +223,15 @@ async function loadApp(id, requestedVariant) {
   cancelTimers();
   if (dialog.open) closeFocus();
   const version = ++selectionVersion;
-  const module = await import(entry.module);
+  const [module, findingsModule, ...stateModules] = await Promise.all([
+    import(entry.module),
+    registered.findings ? import(registered.findings) : null,
+    ...variants.map(item => import(item.module)),
+  ]);
   if (version !== selectionVersion) return;
+  findings = findingsModule?.default || null;
+  stateEntries = variants;
+  stateApps = new Map(variants.map((item, index) => [item.id, stateModules[index].default]));
   const stylesheet = $('#app-stylesheet');
   stylesheet.disabled = !entry.stylesheet;
   if (entry.stylesheet) stylesheet.setAttribute('href', entry.stylesheet);
@@ -247,10 +266,11 @@ async function loadApp(id, requestedVariant) {
   $('#preview-caption').textContent = app.previewLabel || 'Prototype';
   applyStudioTheme();
   $('#app-theme').value = appTheme;
+  if (!viewEnabled(currentView)) currentView = fallbackView();
   renderView(); updateURL();
 }
 function mobileTabs() {
-  return `<div class="mobile-navigation"><nav class="mobile-tabs" aria-label="Workspace views">${workspaceViews.map(([id,label])=>`<button data-view="${id}" aria-label="${label}" class="${currentView === id ? 'active' : ''}" ${currentView === id ? 'aria-current="page"' : ''}>${$(`.view-nav [data-view="${id}"] svg`)?.outerHTML || ''}<span>${id === 'library' ? 'Library' : label}</span></button>`).join('')}</nav></div>`;
+  return `<div class="mobile-navigation"><nav class="mobile-tabs" aria-label="Workspace views">${workspaceViews().map(([id,label])=>`<button data-view="${id}" aria-label="${label}" class="${currentView === id ? 'active' : ''}" ${currentView === id ? 'aria-current="page"' : ''}>${$(`.view-nav [data-view="${id}"] svg`)?.outerHTML || ''}<span>${id === 'library' ? 'Library' : label}</span></button>`).join('')}</nav></div>`;
 }
 function renderOverview() {
   const overview = app.overview || {};
@@ -262,7 +282,80 @@ function renderOverview() {
     const url = new URL(overview.reference?.url);
     if (['http:','https:'].includes(url.protocol)) referenceURL = url.href;
   } catch {}
-  return `<article class="studio-overview" aria-labelledby="overview-title"><header><p class="overview-label">${esc(overview.eyebrow || 'Overview')}</p><h1 id="overview-title">${esc(overview.title || 'Project overview')}</h1>${overview.description ? `<p class="overview-description">${esc(overview.description)}</p>` : ''}</header>${overview.rationale ? `<p class="overview-rationale">${esc(overview.rationale)}</p>` : ''}${strategies.length ? `<section class="overview-approach" aria-labelledby="overview-approach-title"><h2 id="overview-approach-title">${esc(approachTitle)}</h2><ul>${strategies.map(item=>`<li>${strategyHTML(item)}</li>`).join('')}</ul></section>` : ''}${referenceURL ? `<footer class="overview-reference"><a href="${esc(referenceURL)}" target="_blank" rel="noopener noreferrer">${esc(overview.reference.label || 'Read the reference')}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h11v11M19 5 5 19"/></svg></a></footer>` : ''}</article>`;
+  const items = findingItems();
+  const findingsLink = items.length ? `<section class="overview-findings"><h2>${items.length} ${items.length === 1 ? 'finding' : 'findings'}</h2><p>${esc(severitySummary(items))}</p><div class="overview-findings-actions"><button type="button" class="text-button" data-view="findings">View findings</button><button type="button" class="text-button" data-present="0">Present</button></div></section>` : '';
+  return `<article class="studio-overview" aria-labelledby="overview-title">${renderAbout()}<header><p class="overview-label">${esc(overview.eyebrow || 'Overview')}</p><h1 id="overview-title">${esc(overview.title || 'Project overview')}</h1>${overview.description ? `<p class="overview-description">${esc(overview.description)}</p>` : ''}</header>${overview.rationale ? `<p class="overview-rationale">${esc(overview.rationale)}</p>` : ''}${strategies.length ? `<section class="overview-approach" aria-labelledby="overview-approach-title"><h2 id="overview-approach-title">${esc(approachTitle)}</h2><ul>${strategies.map(item=>`<li>${strategyHTML(item)}</li>`).join('')}</ul></section>` : ''}${referenceURL ? `<footer class="overview-reference"><a href="${esc(referenceURL)}" target="_blank" rel="noopener noreferrer">${esc(overview.reference.label || 'Read the reference')}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h11v11M19 5 5 19"/></svg></a></footer>` : ''}${findingsLink}</article>`;
+}
+// Review framing for someone opening a shared link without a walkthrough.
+function renderAbout() {
+  const about = studioOptions.about;
+  if (!about) return '';
+  const rows = [['Prepared for', about.preparedFor], ['Prepared by', about.preparedBy], ['Date', about.date], ['Scope', about.scope]]
+    .filter(([, value]) => typeof value === 'string' && value.trim());
+  const note = about.note || (stateEntries.length > 1
+    ? `Open any screen to try it. ${stateEntries.map(item => item.name).join(' and ')} are separate design states; switch between them at the top. Every interaction is simulated locally.`
+    : 'Open any screen to try it. Every interaction is simulated locally.');
+  return `<aside class="overview-about" aria-label="About this review">${rows.length ? `<dl>${rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl>` : ''}<p>${esc(note)}</p></aside>`;
+}
+
+// Findings link captured evidence to the proposal that addresses it.
+const severityOrder = ['high', 'medium', 'low'];
+const findingStates = () => ({ evidence: findings?.evidenceState || 'existing', proposal: findings?.proposalState || 'future' });
+function findingItems() {
+  const items = Array.isArray(findings?.items) ? findings.items : [];
+  return items.map((item, index) => ({ ...item, order: index }))
+    .sort((a, b) => severityOrder.indexOf(a.severity) - severityOrder.indexOf(b.severity) || a.order - b.order);
+}
+function severitySummary(items) {
+  return severityOrder.map(level => [level, items.filter(item => item.severity === level).length])
+    .filter(([, count]) => count).map(([level, count]) => `${count} ${level}`).join(' · ');
+}
+// Without design states, evidence and proposal cards both live in the single app.
+function stateApp(id) { return stateApps.get(id) || (!stateEntries.length ? app : null); }
+function stateName(id) { return stateEntries.find(item => item.id === id)?.name || (id === findingStates().evidence ? 'Evidence' : 'Proposal'); }
+function findCard(stateId, cardId) {
+  for (const board of stateApp(stateId)?.NAV || []) {
+    const card = board.cards.find(item => item.id === cardId);
+    if (card) return card;
+  }
+  return null;
+}
+function severityTag(level) { return `<span class="severity severity-${esc(level)}">${esc(level[0].toUpperCase() + level.slice(1))}</span>`; }
+function findingLinks(stateId, ids = []) {
+  const links = ids.map(id => findCard(stateId, id) ? `<button type="button" class="finding-card-link" data-state-card="${esc(stateId)}" data-card="${esc(id)}">${esc(findCard(stateId, id).title)}</button>` : '').join('');
+  return links ? `<div class="finding-links"><span>${esc(stateName(stateId))}</span>${links}</div>` : '';
+}
+function renderFindings() {
+  const items = findingItems();
+  const { evidence, proposal } = findingStates();
+  return `<div class="section-toolbar"><h1 class="section-title">Findings <span>${esc(severitySummary(items))}</span></h1><button type="button" class="text-button present-start" data-present="0">Present</button></div>
+    ${findings.summary ? `<p class="findings-summary">${esc(findings.summary)}</p>` : ''}
+    <ol class="findings-list">${items.map((item, index) => `<li class="finding" id="finding-${esc(item.id)}">
+      <span class="finding-number" aria-hidden="true">${String(index + 1).padStart(2, '0')}</span>
+      <div class="finding-body">
+        <div class="finding-heading">${severityTag(item.severity)}<h2>${esc(item.title)}</h2></div>
+        ${item.problem ? `<p class="finding-problem">${esc(item.problem)}</p>` : ''}
+        ${item.recommendation ? `<p class="finding-recommendation"><strong>Recommendation</strong> ${esc(item.recommendation)}</p>` : ''}
+        <div class="finding-footer">${findingLinks(evidence, item.evidence)}${findingLinks(proposal, item.proposal)}<button type="button" class="text-button" data-present="${index}">Present</button></div>
+      </div>
+    </li>`).join('')}</ol>`;
+}
+// The counterpart of a card in another design state: an explicit compare, else a finding pair.
+function counterpartFor(card) {
+  if (!card || stateEntries.length < 2) return null;
+  let target = card.compare;
+  if (!target) {
+    const { evidence, proposal } = findingStates();
+    for (const item of findingItems()) {
+      if (appVariant === evidence && item.evidence?.includes(card.id) && item.proposal?.length) { target = { state: proposal, card: item.proposal[0] }; break; }
+      if (appVariant === proposal && item.proposal?.includes(card.id) && item.evidence?.length) { target = { state: evidence, card: item.evidence[0] }; break; }
+    }
+  }
+  return target && target.state !== appVariant && findCard(target.state, target.card) ? target : null;
+}
+async function openStateCard(stateId, cardId) {
+  if (stateEntries.length && stateId !== appVariant) await loadApp(appId, stateId);
+  if (cards.some(card => card.id === cardId)) openCard(cardId);
 }
 function cardHTML(card) {
   const s = makeState(card);
@@ -327,7 +420,7 @@ function renderMap() {
 function renderView() {
   $('#board-subnav').hidden = currentView !== 'screens';
   for (const button of document.querySelectorAll('.view-nav [data-view]')) {
-    button.hidden = !workspaceViews.some(([id])=>id === button.dataset.view);
+    button.hidden = !workspaceViews().some(([id])=>id === button.dataset.view);
     const active = button.dataset.view === currentView;
     button.classList.toggle('active', active);
     if (active) button.setAttribute('aria-current', 'page');
@@ -335,6 +428,7 @@ function renderView() {
   }
   let html;
   if (currentView === 'overview') html = renderOverview();
+  else if (currentView === 'findings') html = renderFindings();
   else if (currentView === 'screens') {
     html = `<div class="section-toolbar"><h1 class="section-title">Screens <span id="visible-count" aria-live="polite"></span></h1><div class="filters"><div class="search-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input id="search" type="search" aria-label="Search screens" placeholder="Search screens" value="${esc(search)}"></div><select id="board-filter" aria-label="Filter by board"><option value="all">All boards</option>${app.NAV.map(board => `<option value="${esc(board.id)}" ${boardFilter === board.id ? 'selected' : ''}>${esc(board.title)}</option>`).join('')}</select><select id="kind-filter" aria-label="Filter by state type"><option value="all">All states</option>${[...new Set(cards.map(card => card.kind))].map(value => `<option value="${esc(value)}" ${kind === value ? 'selected' : ''}>${esc(value[0].toUpperCase()+value.slice(1))}</option>`).join('')}</select></div></div><div id="boards"></div>`;
   } else if (currentView === 'map') html = renderMap();
@@ -344,7 +438,7 @@ function renderView() {
 }
 
 function setView(view) {
-  if (!workspaceViews.some(([id])=>id === view)) return;
+  if (!workspaceViews().some(([id])=>id === view)) return;
   const restoreMobileFocus = content.contains(document.activeElement) && document.activeElement?.matches('[data-view]');
   currentView = view;
   renderView(); updateURL();
@@ -414,7 +508,7 @@ function openCard(id, { hold = false, snapshot, sequence } = {}) {
   cancelTimers(); selectionVersion++;
   selectedCard = card; state = snapshot ? structuredClone(snapshot) : makeState(card); history = []; resetPoint = null;
   if (hold) holdAdvance(card);
-  const closeLabel = `Back to ${workspaceViews.find(([id])=>id === currentView)?.[1].toLowerCase() || 'screens'}`;
+  const closeLabel = `Back to ${workspaceViews().find(([id])=>id === currentView)?.[1].toLowerCase() || 'screens'}`;
   $('#close-focus').textContent = `← ${closeLabel}`;
   $('#close-focus').setAttribute('aria-label', closeLabel);
   if (!dialog.open) dialog.showModal();
@@ -544,6 +638,7 @@ function renderLive() {
   $('#focus-title').textContent = card.title;
   if (syncReviewStep(baseCard.id)) updateURL();
   renderStepControls(baseCard.id);
+  renderCompare(baseCard);
   const backRoute = app.backRoute?.[state.route] || app.freshState().route;
   $('#prototype-back').disabled = !history.length && !state.overlay && state.route === backRoute;
   const builtins = {back:{label:'Go back',description:'Return to the previous app screen.'},'dismiss-overlay':{label:'Dismiss',description:'Close this overlay and return to the screen underneath.'},'dismiss-toast':{label:'Dismiss message',description:'Hide the feedback message.'}};
@@ -620,6 +715,81 @@ function renderLive() {
   }
   $('#studio-announcement').textContent = card.title;
 }
+function renderCompare(card) {
+  const toggle = $('#compare-toggle');
+  const target = counterpartFor(card);
+  toggle.hidden = !target;
+  if (!target) { toggle.innerHTML = ''; delete toggle.dataset.key; return; }
+  const key = `${appVariant}:${card.id}:${target.state}:${target.card}`;
+  if (toggle.dataset.key === key) return;
+  toggle.dataset.key = key;
+  toggle.innerHTML = stateEntries.filter(item => [appVariant, target.state].includes(item.id)).map(item => item.id === appVariant
+    ? `<button type="button" aria-pressed="true">${esc(item.name)}</button>`
+    : `<button type="button" aria-pressed="false" data-state-card="${esc(item.id)}" data-card="${esc(target.card)}" title="${esc(findCard(item.id, target.card).title)}">${esc(item.name)}</button>`).join('');
+}
+
+// Presenter mode walks through findings with evidence and proposal side by side.
+const presenter = $('#present');
+let presentIndex = 0, presentOpener = null;
+function setStateStylesheets(enabled) {
+  for (const link of document.querySelectorAll('link[data-state-stylesheet]')) link.remove();
+  if (!enabled) return;
+  for (const item of stateEntries) {
+    if (item.id === appVariant || !item.stylesheet) continue;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet'; link.href = item.stylesheet; link.dataset.stateStylesheet = item.id;
+    document.head.append(link);
+  }
+}
+function presentFrame(stateId, cardId) {
+  const mod = stateApp(stateId), card = cardId && findCard(stateId, cardId);
+  if (!mod || !card) return '';
+  const width = mod.presentation?.width || 360, height = mod.presentation?.height || 740;
+  const scale = Math.min(.6, 360 / width);
+  return `<figure class="present-frame"><figcaption><span>${esc(stateName(stateId))}</span>${esc(card.title)}</figcaption><div role="button" tabindex="0" class="present-open" data-state-card="${esc(stateId)}" data-card="${esc(cardId)}" aria-label="Try ${esc(card.title)} in the prototype" style="width:${width * scale}px;height:${height * scale}px"><div class="present-thumb" aria-hidden="true" inert><div class="phone" style="${tokensStyle(mod)};--preview-width:${width}px;--preview-height:${height}px;transform:scale(${scale})">${staticMarkup(screenHTML(makeState(card, mod), mod))}</div></div></div></figure>`;
+}
+function renderPresenter() {
+  const items = findingItems(), item = items[presentIndex];
+  const { evidence, proposal } = findingStates();
+  $('#present-position').textContent = `Finding ${presentIndex + 1} of ${items.length}`;
+  $('#present-previous').disabled = presentIndex === 0;
+  $('#present-next').disabled = presentIndex === items.length - 1;
+  $('#present-body').innerHTML = `<div class="present-text">${severityTag(item.severity)}<h2 id="present-title">${esc(item.title)}</h2>${item.problem ? `<p class="finding-problem">${esc(item.problem)}</p>` : ''}${item.recommendation ? `<p class="finding-recommendation"><strong>Recommendation</strong> ${esc(item.recommendation)}</p>` : ''}</div><div class="present-frames">${presentFrame(evidence, item.evidence?.[0])}${presentFrame(proposal, item.proposal?.[0])}</div>`;
+  $('#present-announcement').textContent = `Finding ${presentIndex + 1}: ${item.title}`;
+}
+function openPresenter(index) {
+  const count = findingItems().length;
+  if (!count) return;
+  presentIndex = Math.max(0, Math.min(count - 1, index));
+  if (!presenter.open) {
+    presentOpener = document.activeElement;
+    setStateStylesheets(true);
+    presenter.showModal();
+    document.body.style.overflow = 'hidden';
+  }
+  renderPresenter();
+  $('#present-close').focus({ preventScroll: true });
+}
+function movePresenter(direction) {
+  const index = presentIndex + direction;
+  if (index < 0 || index >= findingItems().length) return;
+  presentIndex = index; renderPresenter();
+}
+presenter.addEventListener('close', () => {
+  setStateStylesheets(false);
+  document.body.style.overflow = '';
+  if (presentOpener?.isConnected) presentOpener.focus({ preventScroll: true });
+  presentOpener = null;
+});
+presenter.addEventListener('keydown', event => {
+  if (event.altKey || event.ctrlKey || event.metaKey) return;
+  if (event.key === 'ArrowLeft') { event.preventDefault(); movePresenter(-1); }
+  if (event.key === 'ArrowRight') { event.preventDefault(); movePresenter(1); }
+});
+$('#present-previous').addEventListener('click', () => movePresenter(-1));
+$('#present-next').addEventListener('click', () => movePresenter(1));
+$('#present-close').addEventListener('click', () => presenter.close());
+
 const mobileReview = matchMedia('(max-width: 760px), (max-width: 960px) and (pointer: coarse)');
 function syncReviewPanels() {
   const details = mobileReview.matches && dialog.dataset.details === 'true';
@@ -928,11 +1098,18 @@ $('#prototype-back').addEventListener('click',()=>ctx.back());
 document.addEventListener('keydown',event=>{
   const card = event.target.closest('.card-open');
   if (card && ['Enter',' '].includes(event.key)) { event.preventDefault(); openCardFromElement(card); }
+  const frame = event.target.closest('.present-open');
+  if (frame && ['Enter',' '].includes(event.key)) { event.preventDefault(); frame.click(); }
 });
 document.addEventListener('click',event=>{
-  const target = event.target.closest('[data-open-card],[data-view],[data-board]');
+  const target = event.target.closest('[data-open-card],[data-view],[data-board],[data-state-card],[data-present]');
   if (!target) return;
-  if (target.dataset.openCard) openCardFromElement(target);
+  if (target.dataset.stateCard) {
+    if (presenter.open) { presentOpener = null; presenter.close(); }
+    openStateCard(target.dataset.stateCard, target.dataset.card).catch(showError);
+  }
+  else if (target.dataset.present !== undefined) openPresenter(Number(target.dataset.present));
+  else if (target.dataset.openCard) openCardFromElement(target);
   else if (target.dataset.view) setView(target.dataset.view);
   else if (target.dataset.board) {
     event.preventDefault();
