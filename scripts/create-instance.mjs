@@ -43,7 +43,7 @@ function documents(opts, manifest, kind) {
     dev: `node server.mjs --port ${opts.port}`,
     'dev:phone': `node server.mjs --phone --port ${opts.port > 0 && opts.port < 65535 ? opts.port + 1 : 0}`,
     check: 'node scripts/check.mjs', 'check:phone': 'node scripts/check-phone-preview.mjs', 'export-share': 'node scripts/export-share.mjs',
-    share: 'node scripts/share.mjs', 'draft-existing': 'node scripts/draft-existing.mjs',
+    share: 'node scripts/share.mjs', 'draft-existing': 'node scripts/draft-existing.mjs', 'scan-fonts': 'node scripts/scan-fonts.mjs',
     'create-instance': 'node scripts/create-instance.mjs', 'create-app': 'node scripts/create-app.mjs'
   }, engines: { node: '>=18' } }));
   files.set('.gitignore', '# Local and generated files\nnode_modules/\n.env\n.env.*\n!.env.example\n.DS_Store\n*.log\ndist/\n.app-flow-exports/\n.app-flow-export-*/\n');

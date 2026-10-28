@@ -408,6 +408,10 @@ for (const entry of registry.apps) {
     for (const item of ds.radii || []) assert.ok(typeof item.name === 'string' && typeof item.value === 'number', 'radii need a name and number');
     for (const item of ds.components || []) { assert.ok(typeof item.name === 'string', 'components need a name'); evidence(`component ${item.name}`, item.evidence); }
     evidence('iconography', ds.iconography?.evidence);
+    for (const font of ds.fonts || []) {
+      assert.ok(typeof font.family === 'string' && /^\.\/apps\/[^"'()]+\.(woff2?|ttf|otf)$/.test(font.src || ''), `font ${font?.family} needs a family and a ./apps/ font file`);
+      assert.ok(existsSync(fileURLToPath(new URL(font.src, root))), `font file missing: ${font.src}`);
+    }
     if (ds.tokens) {
       assert.ok(ds.tokens.light, 'tokens need a light mode');
       for (const [mode, values] of Object.entries(ds.tokens)) for (const key of ['background', 'surface', 'ink', 'muted', 'border', 'accent', 'accentSoft', 'onAccent', 'danger'])

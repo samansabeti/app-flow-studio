@@ -16,7 +16,8 @@
     "check:phone": "node scripts/check-phone-preview.mjs",
     "create-app": "node scripts/create-app.mjs",
     "create-instance": "node scripts/create-instance.mjs",
-    "export-share": "node scripts/export-share.mjs"
+    "export-share": "node scripts/export-share.mjs",
+    "scan-fonts": "node scripts/scan-fonts.mjs"
   },
   "engines": {
     "node": ">=18"

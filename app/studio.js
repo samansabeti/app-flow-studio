@@ -233,6 +233,7 @@ async function loadApp(id, requestedVariant) {
   if (version !== selectionVersion) return;
   findings = findingsModule?.default || null;
   designSystem = designModule?.default || null; designSystemPath = registered.designSystem || null;
+  applyDesignFonts();
   stateEntries = variants;
   stateApps = new Map(variants.map((item, index) => [item.id, stateModules[index].default]));
   const stylesheet = $('#app-stylesheet');
@@ -413,6 +414,13 @@ function renderLibrary() {
 }
 // Design system: inferred from Existing screenshots by Claude (apps/design-system.js), with a live
 // pixel-sampled palette as a cross-check. While the file is pending, the view polls for it.
+// Fonts the design system ships (e.g. extracted from the client's app) load for samples and Future screens.
+function applyDesignFonts() {
+  let style = document.getElementById('ds-fonts');
+  if (!style) { style = document.createElement('style'); style.id = 'ds-fonts'; document.head.append(style); }
+  const safe = value => String(value ?? '').replace(/["\\<>]/g, '');
+  style.textContent = (designSystem?.fonts || []).filter(font => /^\.\/apps\/[^"'()]+\.(woff2?|ttf|otf)$/.test(font.src || '')).map(font => `@font-face{font-family:"${safe(font.family)}";src:url("${safe(font.src)}");font-weight:${Number(font.weight) || 400};font-style:${font.style === 'italic' ? 'italic' : 'normal'};font-display:swap}`).join('');
+}
 const dsState = () => designSystem?.evidenceState || 'existing';
 const dsName = () => designSystem?.name || app.identity.name;
 const px = value => typeof value === 'number' ? `${value}px` : String(value ?? '');

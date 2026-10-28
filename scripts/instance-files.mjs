@@ -6,7 +6,7 @@ export const STUDIO_VERSION = '1.3.0';
 export const STATIC_CORE = ['index.html', 'studio.js', 'studio.css', 'app.css', 'ui.js'];
 export const TEMPLATE_FILES = ['existing.js', 'future.js', 'existing.css', 'future.css', 'findings.js', 'design-system.js'];
 export const INSTANCE_CORE = [...STATIC_CORE, 'server.mjs', 'scripts/check.mjs',
-  'scripts/create-instance.mjs', 'scripts/create-app.mjs', 'scripts/export-share.mjs', 'scripts/share.mjs', 'scripts/draft-existing.mjs',
+  'scripts/create-instance.mjs', 'scripts/create-app.mjs', 'scripts/export-share.mjs', 'scripts/share.mjs', 'scripts/draft-existing.mjs', 'scripts/scan-fonts.mjs',
   'scripts/instance-files.mjs', 'scripts/project-paths.mjs', 'scripts/check-phone-preview.mjs', 'scripts/qr-code.mjs',
   'scripts/vendor/qrcodegen.mjs', ...TEMPLATE_FILES.map(file => `templates/client/${file}`)];
 const extensions = new Set(['.js', '.mjs', '.css', '.json', '.svg', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.ico', '.woff', '.woff2', '.ttf', '.otf', '.md', '.txt']);
