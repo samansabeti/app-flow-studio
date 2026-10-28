@@ -340,17 +340,7 @@ kbd { padding: 2px 4px; margin: 0 2px; border: 1px solid var(--line); border-rad
 .phone-toast button { padding: 3px; background: transparent; color: inherit; font-size: 18px; }
 
 /* Flow map. */
-.flow-lane { margin-bottom: 28px; padding-bottom: 28px; border-bottom: 1px solid var(--line); }
-.flow-lane h2 { margin-bottom: 18px; font-size: 14px; font-weight: 600; }
-.flow-lane.has-description h2 { margin-bottom: 7px; }
 .flow-description { max-width: 84ch; margin: 0 0 16px; color: var(--muted); font-size: 12px; line-height: 1.6; }
-.flow-track { display: flex; align-items: center; overflow: auto; padding: 5px 5px 12px; }
-.flow-node { min-width: 146px; max-width: 170px; padding: 14px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); text-align: left; flex-shrink: 0; }
-.flow-node:hover { border-color: var(--muted); }
-.flow-node b { display: block; margin-bottom: 8px; font-size: 12px; font-weight: 500; line-height: 1.5; }
-.flow-node small { display: block; margin-top: 8px; color: var(--muted); font: 10px ui-monospace, monospace; }
-.flow-edge { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-width: 90px; max-width: 110px; padding: 0 10px; color: var(--muted); font-size: 10px; line-height: 1.5; text-align: center; }
-.flow-edge::after { content: "→"; font-size: 22px; line-height: 1; }
 
 /* App design libraries, with neutral labels around real app samples. */
 .library-section { margin: 32px 0; }
@@ -435,8 +425,6 @@ kbd { padding: 2px 4px; margin: 0 2px; border: 1px solid var(--line); border-rad
   .context-panel { width: 100%; max-width: 380px; padding-top: 8px; }
   .keyboard-hint { padding-top: 6px; padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); font-size: 10px; }
   .keyboard-hint span { margin: 0 6px; }
-  .flow-node { min-width: 135px; }
-  .flow-edge { min-width: 80px; }
   .token-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
 }
 @media (max-width: 480px) {
@@ -618,15 +606,7 @@ kbd { padding: 2px 4px; margin: 0 2px; border: 1px solid var(--line); border-rad
   .card-name h3 { font-size: 13px; line-height: 1.45; }
   .card-name .status { margin-top: 5px; font-size: 11px; }
   .card-route { font-size: 11px; overflow-wrap: anywhere; }
-  .flow-lane { margin-bottom: 24px; padding-bottom: 24px; }
-  .flow-lane h2 { font-size: 15px; }
   .flow-description { font-size: 13px; }
-  .flow-track { display: grid; grid-template-columns: minmax(0, 1fr); overflow: visible; padding: 0; }
-  .flow-node { width: 100%; min-width: 0; max-width: none; min-height: 68px; padding: 14px 16px; }
-  .flow-node b { font-size: 14px; line-height: 1.4; }
-  .flow-node small { font-size: 11px; }
-  .flow-edge { flex-direction: row; justify-content: flex-start; gap: 10px; min-width: 0; max-width: none; min-height: 38px; padding: 8px 18px; font-size: 12px; text-align: left; }
-  .flow-edge::after { order: -1; content: "↓"; font-size: 20px; }
   .token-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 16px; }
   .token-info, .type-spec, .component-card { min-width: 0; overflow-wrap: anywhere; }
   .type-grid, .component-grid { grid-template-columns: minmax(0, 1fr); gap: 24px; }
@@ -746,7 +726,7 @@ kbd { padding: 2px 4px; margin: 0 2px; border: 1px solid var(--line); border-rad
 :is(button, a, input, select, textarea, [role="button"]):focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 ::selection { background: color-mix(in srgb, var(--focus) 22%, transparent); }
 * { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
-button, a, .card-open, .flow-node, .filters :is(input, select) { transition: background-color .15s, border-color .15s, box-shadow .2s, color .15s, transform .2s; }
+button, a, .card-open, .graph-node, .filters :is(input, select) { transition: background-color .15s, border-color .15s, box-shadow .2s, color .15s, transform .2s; }
 
 /* Sidebar and top bar. */
 .studio-brand { font-size: 13px; letter-spacing: -.01em; }
@@ -792,14 +772,6 @@ button, a, .card-open, .flow-node, .filters :is(input, select) { transition: bac
 .status { padding: 1px 7px; border-radius: 999px; font-size: 10.5px; font-weight: 500; }
 
 /* Flow map. */
-.flow-lane { margin-bottom: 36px; padding-bottom: 32px; }
-.flow-lane h2 { font-size: 15px; letter-spacing: -.01em; }
-.flow-track { padding: 6px 6px 14px; }
-.flow-node { padding: 12px 14px; border: 0; border-radius: 10px; box-shadow: var(--shadow-sm); }
-.flow-node:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
-.flow-node b { font-size: 13px; }
-.flow-edge { min-width: 96px; font-size: 11px; }
-.flow-edge::after { font-size: 16px; opacity: .55; }
 
 /* Focus view and context panel. */
 #focus::backdrop { background: rgb(0 0 0 / .3); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
@@ -813,3 +785,30 @@ button, a, .card-open, .flow-node, .filters :is(input, select) { transition: bac
 .interaction-item span { font-size: 12px; }
 kbd { padding: 2px 6px; border: 0; border-radius: 5px; background: var(--soft); color: var(--ink); }
 .phone-toast { border-radius: 12px; }
+
+/* Flow map: one graph of every flow. Pills highlight a flow; other screens fade back. */
+.graph-pills { display: flex; flex-wrap: wrap; gap: 6px; margin: -12px 0 20px; }
+.graph-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); font-size: 12px; font-weight: 500; }
+.graph-pill span { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; opacity: .8; }
+.graph-pill:hover { color: var(--ink); background: var(--soft); }
+.graph-pill[aria-pressed="true"] { background: var(--ink); color: var(--page); box-shadow: none; }
+.graph-pill[aria-pressed="true"] span { color: inherit; }
+.flow-description { max-width: 84ch; margin: 0 0 16px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.graph-scroll { overflow: auto; margin: 0 -40px; padding: 0 40px; }
+.graph { position: relative; }
+.graph-edges { position: absolute; inset: 0; overflow: visible; }
+.graph-edge { fill: none; stroke: var(--line); stroke-width: 1.5; transition: stroke .2s, opacity .2s; }
+.graph-edges marker path { fill: var(--line); }
+#graph-arrow-on path { fill: var(--focus); }
+.graph.focused .graph-edge { opacity: .45; }
+.graph-edge.on { stroke: var(--focus); stroke-width: 2; opacity: 1 !important; }
+.graph-node { position: absolute; display: grid; align-content: center; gap: 3px; padding: 0 14px; border-radius: 10px; background: var(--panel); box-shadow: var(--shadow-sm); text-align: left; }
+.graph-node:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.graph-node b { overflow: hidden; font-size: 12.5px; font-weight: 500; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+.graph-node small { overflow: hidden; color: var(--muted); font: 10.5px ui-monospace, monospace; text-overflow: ellipsis; white-space: nowrap; }
+.graph-node i { position: absolute; top: -8px; left: -8px; display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: var(--focus); color: #fff; font: 600 11px/1 -apple-system, sans-serif; font-style: normal; }
+.graph.focused .graph-node:not(.on) { opacity: .35; }
+.graph.focused .graph-node.on { box-shadow: 0 0 0 1.5px var(--focus), 0 4px 14px rgb(10 132 255 / .12); }
+.graph-label { position: absolute; z-index: 1; max-width: 150px; padding: 2px 7px; border-radius: 6px; background: var(--page); box-shadow: 0 0 0 1px var(--line); color: var(--ink); font-size: 11px; line-height: 1.4; text-align: center; transform: translate(-50%, -50%); pointer-events: none; }
+@media (max-width: 760px) { .graph-scroll { margin: 0 -16px; padding: 0 16px; } }
+.quiet-focus:focus-visible { outline: none; }

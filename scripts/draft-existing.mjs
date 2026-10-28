@@ -10,12 +10,13 @@ const source = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const usage = 'Usage: npm run draft-existing -- <screenshot-folder> [--force]\n  Copies .png/.jpg/.webp captures into apps/assets/existing/ and drafts apps/existing.js.\n  --force replaces an apps/existing.js that is no longer the untouched scaffold.';
 const scaffoldMarker = 'An unreviewed Existing audit scaffold';
 const findingsMarker = 'Placeholder. Replace with a one-sentence summary';
-const stylesheet = `/* Screenshot evidence. Hotspots are invisible until hovered or focused; pressing anywhere on the screen reveals them all. */
+const stylesheet = `/* Screenshot evidence. Hotspots are invisible until hovered or focused; pressing an empty part of the screen reveals them all. */
 .phone .shot-screen { position: relative; overflow: hidden; background: #000; }
 .phone .shot-image { display: block; width: 100%; height: 100%; object-fit: contain; }
-.phone .shot-hotspot { position: absolute; padding: 0; border: 0; border-radius: 6px; background: transparent; }
-.phone .shot-hotspot:hover, .phone .shot-screen:active .shot-hotspot { background: rgb(0 120 255 / .14); }
-.phone .shot-hotspot:focus-visible { outline: 2px solid #0a66ff; outline-offset: 1px; }
+.phone .shot-hotspot { position: absolute; padding: 0; border: 0; border-radius: 8px; background: transparent; transition: box-shadow .15s, background-color .15s; }
+@media (hover: hover) { .phone .shot-hotspot:hover { box-shadow: inset 0 0 0 1.5px rgb(10 132 255 / .6); background: rgb(10 132 255 / .05); } }
+.phone .shot-screen:active:not(:has(.shot-hotspot:active)) .shot-hotspot { box-shadow: inset 0 0 0 1.5px rgb(10 132 255 / .6); background: rgb(10 132 255 / .05); }
+.phone .shot-hotspot:focus-visible { outline: 2px solid #0a84ff; outline-offset: 1px; }
 `;
 const emptyFindings = `// Audit findings. Each finding links Existing evidence cards to the Future cards that address it.
 // { id, severity: 'high' | 'medium' | 'low', title, problem, recommendation, evidence: [cardIds], proposal: [cardIds] }

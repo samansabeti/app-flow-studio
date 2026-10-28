@@ -243,7 +243,7 @@ async function loadApp(id, requestedVariant) {
     try { localStorage.setItem(`app-flow-studio:app:${appId}:state`, appVariant); } catch {}
   }
   cards = app.NAV.flatMap(board => board.cards.map(card => ({ ...card, boardId: board.id, boardTitle: board.title })));
-  selectedCard = null; reviewSequence = null; state = app.freshState(); history = []; search = ''; kind = 'all'; boardFilter = 'all';
+  selectedCard = null; reviewSequence = null; mapFlow = -1; state = app.freshState(); history = []; search = ''; kind = 'all'; boardFilter = 'all';
   $('#app-picker').value = appId;
   $('#breadcrumb-app').textContent = app.identity.name;
   const stateToggle = $('#app-variant');
@@ -364,7 +364,7 @@ function cardHTML(card) {
     <div role="button" tabindex="0" class="card-open" data-open-card="${esc(card.id)}" aria-label="Open ${esc(card.title)}">
       <div class="thumb" aria-hidden="true" inert><div class="phone" style="${tokensStyle()}">${preview}</div></div>
     </div>
-    <div class="card-details"><div class="card-name"><h3>${esc(card.title)}</h3><span class="status status-${esc(card.status.toLowerCase())}">${esc(card.status)}</span></div><div class="card-route">/${esc(card.route)} · ${esc(card.kind)}</div></div>
+    <div class="card-details"><div class="card-name"><h3>${esc(card.title)}</h3><span class="status status-${esc(card.status.toLowerCase())}">${esc(card.status)}</span></div><div class="card-route">/${esc(card.route)}${card.kind !== 'ready' ? ` · ${esc(card.kind)}` : ''}</div></div>
   </article>`;
 }
 function galleryCards() {
@@ -407,15 +407,75 @@ function renderLibrary() {
     ${typography ? `<section class="library-section"><h2>Typography</h2><div class="type-grid">${typography}</div></section>` : ''}
     ${components ? `<section class="library-section"><h2>Components <span>Static previews</span></h2><div class="component-grid">${components}</div></section>` : ''}`;
 }
+// Flow map: every flow merged into one graph. Pills highlight a single flow and its steps.
+let mapFlow = -1;
+function mapGraph() {
+  const ids = [], edges = new Map();
+  app.FLOWS.forEach((flow, flowIndex) => flow.steps.forEach((step, index) => {
+    if (!ids.includes(step.card)) ids.push(step.card);
+    const next = flow.steps[index + 1];
+    if (!next) return;
+    const key = `${step.card}>${next.card}`;
+    if (!edges.has(key)) edges.set(key, { from: step.card, to: next.card, label: step.label || '', flows: new Set() });
+    edges.get(key).flows.add(flowIndex);
+  }));
+  const all = [...edges.values()], back = new Set(), seen = new Map();
+  const visit = id => {
+    seen.set(id, 1);
+    for (const edge of all.filter(item => item.from === id)) {
+      if (seen.get(edge.to) === 1) back.add(edge);
+      else if (!seen.get(edge.to)) visit(edge.to);
+    }
+    seen.set(id, 2);
+  };
+  ids.forEach(id => seen.get(id) || visit(id));
+  const forward = all.filter(edge => !back.has(edge));
+  const layer = new Map(ids.map(id => [id, 0]));
+  for (let pass = 0; pass < ids.length; pass++) for (const edge of forward) layer.set(edge.to, Math.max(layer.get(edge.to), layer.get(edge.from) + 1));
+  const columns = [];
+  ids.forEach(id => (columns[layer.get(id)] ||= []).push(id));
+  // Rows: each screen sits level with its parents where possible, so chains stay straight.
+  const row = new Map();
+  columns.forEach(column => column.forEach((id, index) => row.set(id, index)));
+  for (const column of columns.slice(1)) {
+    const want = id => { const rows = forward.filter(edge => edge.to === id).map(edge => row.get(edge.from)); return rows.length ? Math.min(...rows) : row.get(id); };
+    const wanted = new Map(column.map(id => [id, want(id)]));
+    column.sort((a, b) => wanted.get(a) - wanted.get(b));
+    let next = 0;
+    for (const id of column) { const value = Math.max(wanted.get(id), next); row.set(id, value); next = value + 1; }
+  }
+  const rows = Math.max(...ids.map(id => row.get(id))) + 1;
+  return { ids, edges: all, back, layer, row, columns, rows };
+}
 function renderMap() {
-  return `<div class="section-toolbar"><h1 class="section-title">Flow map <span>${app.FLOWS.length} flows</span></h1></div>
-    ${app.FLOWS.map((flow, flowIndex) => `<section class="flow-lane${flow.description ? ' has-description' : ''}"><h2>${esc(flow.title)}</h2>${flow.description ? `<p class="flow-description">${esc(flow.description)}</p>` : ''}<div class="flow-track">
-      ${flow.steps.map((step, index) => {
-        const card = cards.find(item => item.id === step.card);
-        return `<button class="flow-node" data-open-card="${esc(card.id)}" data-flow-index="${flowIndex}" data-step-index="${index}"><b>${esc(card.title)}</b><span class="status">${esc(card.kind)}</span><small>/${esc(card.route)}</small></button>
-          ${index < flow.steps.length - 1 ? `<div class="flow-edge">${esc(step.label || 'Continue')}</div>` : ''}`;
-      }).join('')}
-    </div></section>`).join('')}`;
+  const graph = mapGraph(), flow = app.FLOWS[mapFlow];
+  const W = 176, H = 58, X = 248, Y = 92, pad = 24;
+  const at = id => ({ x: pad + graph.layer.get(id) * X, y: pad + graph.row.get(id) * Y });
+  const width = pad * 2 + (graph.columns.length - 1) * X + W, height = pad * 2 + (graph.rows - 1) * Y + H + 40;
+  const stepOf = id => flow ? flow.steps.findIndex(step => step.card === id) : -1;
+  const path = edge => {
+    const a = at(edge.from), b = at(edge.to);
+    if (b.x > a.x) { const x1 = a.x + W, y1 = a.y + H / 2, x2 = b.x - 6, y2 = b.y + H / 2, dx = (x2 - x1) / 2; return `M${x1} ${y1}C${x1 + dx} ${y1} ${x2 - dx} ${y2} ${x2} ${y2}`; }
+    const x1 = a.x + W / 2, y1 = a.y + H, x2 = b.x + W / 2, y2 = b.y + H + 6, low = Math.max(y1, y2) + 34;
+    return `M${x1} ${y1}C${x1} ${low} ${x2} ${low} ${x2} ${y2}`;
+  };
+  const labelAt = edge => { const a = at(edge.from), b = at(edge.to); return b.x > a.x ? { x: (a.x + W + b.x) / 2, y: (a.y + b.y + H) / 2 } : { x: (a.x + b.x + W) / 2, y: Math.max(a.y, b.y) + H + 26 }; };
+  const on = edge => flow && edge.flows.has(mapFlow);
+  const edgesSVG = graph.edges.map(edge => `<path class="graph-edge${on(edge) ? ' on' : ''}" d="${path(edge)}" marker-end="url(#${on(edge) ? 'graph-arrow-on' : 'graph-arrow'})"/>`).join('');
+  const labels = flow ? graph.edges.filter(on).map(edge => { const p = labelAt(edge); return `<span class="graph-label" style="left:${p.x}px;top:${p.y}px">${esc(edge.label || 'Continue')}</span>`; }).join('') : '';
+  const nodes = graph.ids.map(id => {
+    const card = cards.find(item => item.id === id), p = at(id), step = stepOf(id);
+    const sequence = step >= 0 ? ` data-flow-index="${mapFlow}" data-step-index="${step}"` : '';
+    return `<button class="graph-node${step >= 0 ? ' on' : ''}" style="left:${p.x}px;top:${p.y}px;width:${W}px;height:${H}px" data-open-card="${esc(card.id)}"${sequence}>${step >= 0 ? `<i>${step + 1}</i>` : ''}<b>${esc(card.title)}</b><small>/${esc(card.route)}</small></button>`;
+  }).join('');
+  const pills = [['All flows', -1], ...app.FLOWS.map((item, index) => [item.title, index])].map(([title, index]) => `<button class="graph-pill" data-map-flow="${index}" aria-pressed="${mapFlow === index}">${esc(title)}${index >= 0 ? `<span>${app.FLOWS[index].steps.length}</span>` : ''}</button>`).join('');
+  return `<div class="section-toolbar"><h1 class="section-title">Flow map <span>${graph.ids.length} screens · ${app.FLOWS.length} flows</span></h1></div>
+    <div class="graph-pills" role="group" aria-label="Highlight a flow">${pills}</div>
+    ${flow?.description ? `<p class="flow-description">${esc(flow.description)}</p>` : ''}
+    <div class="graph-scroll"><div class="graph${flow ? ' focused' : ''}" style="width:${width}px;height:${height}px">
+      <svg class="graph-edges" width="${width}" height="${height}" aria-hidden="true"><defs><marker id="graph-arrow" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 8 4 0 8z"/></marker><marker id="graph-arrow-on" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 8 4 0 8z"/></marker></defs>${edgesSVG}</svg>
+      ${labels}${nodes}
+    </div></div>`;
 }
 function renderView() {
   $('#board-subnav').hidden = currentView !== 'screens';
@@ -534,7 +594,8 @@ function closeFocus() {
   const cardOpener = [...content.querySelectorAll('[data-open-card]')].find(element => element.dataset.openCard === selectedCard?.id);
   const returnFocus = opener?.isConnected && ![document.body,document.documentElement].includes(opener) ? opener
     : cardOpener || [...document.querySelectorAll('[data-view]')].find(element => element.dataset.view === currentView && available(element));
-  returnFocus?.focus({preventScroll:true});
+  // Return focus quietly: no ring on the card just closed until the user moves focus again.
+  if (returnFocus) { returnFocus.classList.add('quiet-focus'); returnFocus.addEventListener('blur', () => returnFocus.classList.remove('quiet-focus'), { once: true }); returnFocus.focus({preventScroll:true}); }
 }
 function menuItems(menu) {
   return [...menu.querySelectorAll('[role="menuitem"],[role="menuitemradio"],[role="menuitemcheckbox"]')].filter(element => element.closest('[role="menu"]') === menu && !element.disabled && element.getAttribute('aria-disabled') !== 'true' && !element.closest('[inert],[hidden]') && element.getClientRects().length);
@@ -650,7 +711,7 @@ function renderLive() {
       ? 'Held for inspection. Auto-advance is paused. Close and reopen the prototype to replay the transition.'
       : 'Advances once on this first view. Reset or Back returns to loading and holds it for inspection.')
     : 'Local simulation. Reset restores the latest loading step, or the card you opened, and cancels pending transitions.';
-  $('#context').innerHTML = `<div class="context-top"><span class="status status-${esc(card.status.toLowerCase())}">${esc(card.status)}</span><span class="status">${esc(card.kind)}</span></div><h2>${esc(card.title)}</h2><div class="context-route">/${esc(state.route)}${state.overlay ? ` · ${esc(state.overlay)}` : ''}</div>${renderContextSummary(card)}<section class="context-box"><h3>How you get here</h3><p>${esc(card.how)}</p></section><section class="context-box"><h3>Available interactions</h3><ul>${actions.map(action=>`<li class="interaction-item"><strong>${esc(action.label)}</strong><span>${esc(action.description)}</span></li>`).join('') || '<li>No actions are documented for this state.</li>'}</ul></section><div class="simulation-note">${simulationNote}</div>`;
+  $('#context').innerHTML = `<div class="context-top"><span class="status status-${esc(card.status.toLowerCase())}">${esc(card.status)}</span>${card.kind !== 'ready' ? `<span class="status">${esc(card.kind)}</span>` : ''}</div><h2>${esc(card.title)}</h2><div class="context-route">/${esc(state.route)}${state.overlay ? ` · ${esc(state.overlay)}` : ''}</div>${renderContextSummary(card)}<section class="context-box"><h3>How you get here</h3><p>${esc(card.how)}</p></section><section class="context-box"><h3>Available interactions</h3><ul>${actions.map(action=>`<li class="interaction-item"><strong>${esc(action.label)}</strong><span>${esc(action.description)}</span></li>`).join('') || '<li>No actions are documented for this state.</li>'}</ul></section><div class="simulation-note">${simulationNote}</div>`;
   const scrollers = [...phone.querySelectorAll('.app-scroll')];
   for (const element of scrollers) {
     const position = scrollPositions.get(scrollKey(element,state.route,state.overlay || '',scrollers));
@@ -1102,9 +1163,14 @@ document.addEventListener('keydown',event=>{
   if (frame && ['Enter',' '].includes(event.key)) { event.preventDefault(); frame.click(); }
 });
 document.addEventListener('click',event=>{
-  const target = event.target.closest('[data-open-card],[data-view],[data-board],[data-state-card],[data-present]');
+  const target = event.target.closest('[data-open-card],[data-view],[data-board],[data-state-card],[data-present],[data-map-flow]');
   if (!target) return;
-  if (target.dataset.stateCard) {
+  if (target.dataset.mapFlow !== undefined) {
+    mapFlow = Number(target.dataset.mapFlow); renderView();
+    document.querySelector(`[data-map-flow="${mapFlow}"]`)?.focus({preventScroll:true, focusVisible:false});
+    document.querySelector('.graph-node.on')?.scrollIntoView({block:'nearest', inline:'center', behavior:'smooth'});
+  }
+  else if (target.dataset.stateCard) {
     if (presenter.open) { presentOpener = null; presenter.close(); }
     openStateCard(target.dataset.stateCard, target.dataset.card).catch(showError);
   }
