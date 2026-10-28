@@ -7,6 +7,7 @@ const fixedStudioAppearance = ['light','dark'].includes(studioOptions.appearance
 const allViews = [['overview','Overview'],['findings','Findings'],['screens','Screens'],['map','Flow map'],['library','Design library']];
 // Findings come from the app's registry entry, so their view is known only after loading.
 let findings = null;
+let designSystem = null, designSystemPath = null, designSystemPoll = null;
 const viewEnabled = id => (id !== 'overview' || studioOptions.showOverview === true)
   && (id !== 'library' || studioOptions.showDesignLibrary !== false)
   && (id !== 'findings' || Boolean(findings?.items?.length));
@@ -223,13 +224,15 @@ async function loadApp(id, requestedVariant) {
   cancelTimers();
   if (dialog.open) closeFocus();
   const version = ++selectionVersion;
-  const [module, findingsModule, ...stateModules] = await Promise.all([
+  const [module, findingsModule, designModule, ...stateModules] = await Promise.all([
     import(entry.module),
     registered.findings ? import(registered.findings) : null,
+    registered.designSystem ? import(registered.designSystem) : null,
     ...variants.map(item => import(item.module)),
   ]);
   if (version !== selectionVersion) return;
   findings = findingsModule?.default || null;
+  designSystem = designModule?.default || null; designSystemPath = registered.designSystem || null;
   stateEntries = variants;
   stateApps = new Map(variants.map((item, index) => [item.id, stateModules[index].default]));
   const stylesheet = $('#app-stylesheet');
@@ -388,6 +391,7 @@ function resizeGallery() {
   }
 }
 function renderLibrary() {
+  if (designSystem) return renderDesignSystem();
   const library = app.library || {};
   const colorTokens = Object.entries(app.tokens[appTheme]);
   const palette = colorTokens.map(([name, value]) => `<article class="token-card">
@@ -406,6 +410,107 @@ function renderLibrary() {
     <section class="library-section"><h2>Colors <span>${esc(library.paletteNote || appTheme)}</span></h2><div class="token-grid">${palette}</div></section>
     ${typography ? `<section class="library-section"><h2>Typography</h2><div class="type-grid">${typography}</div></section>` : ''}
     ${components ? `<section class="library-section"><h2>Components <span>Static previews</span></h2><div class="component-grid">${components}</div></section>` : ''}`;
+}
+// Design system: inferred from Existing screenshots by Claude (apps/design-system.js), with a live
+// pixel-sampled palette as a cross-check. While the file is pending, the view polls for it.
+const dsState = () => designSystem?.evidenceState || 'existing';
+const dsName = () => designSystem?.name || app.identity.name;
+const px = value => typeof value === 'number' ? `${value}px` : String(value ?? '');
+function evidenceCrop(evidence, width = 220) {
+  const mod = stateApp(dsState()), card = evidence?.card && findCard(dsState(), evidence.card);
+  if (!mod || !card || !Array.isArray(evidence.box)) return '';
+  const [left, top, w, h] = evidence.box;
+  const frameW = mod.presentation?.width || 360, frameH = mod.presentation?.height || 740;
+  // Never enlarge past 1.4x, so small controls stay crisp instead of filling the slot.
+  const scale = Math.min(width / (frameW * w / 100), 1.4), height = frameH * h / 100 * scale;
+  width = frameW * w / 100 * scale;
+  // A div, not a button: the screen markup inside contains buttons, which cannot nest.
+  return `<div role="button" tabindex="0" class="ds-crop" data-state-card="${esc(dsState())}" data-card="${esc(card.id)}" aria-label="Open ${esc(card.title)}" title="Open ${esc(card.title)}" style="width:${Math.round(width)}px;height:${Math.round(height)}px"><span class="ds-crop-inner" aria-hidden="true" inert><span class="phone" style="${tokensStyle(mod)};--preview-width:${frameW}px;--preview-height:${frameH}px;transform:translate(${-frameW * left / 100 * scale}px,${-frameH * top / 100 * scale}px) scale(${scale})">${staticMarkup(screenHTML(makeState(card, mod), mod))}</span></span></div>`;
+}
+const crops = (list, width) => (list || []).map(item => evidenceCrop(item, width)).filter(Boolean).join('');
+function dsSection(id, title, note, body) {
+  return body ? `<section class="ds-section" id="ds-${id}"><header><h2>${esc(title)}</h2>${note ? `<p>${esc(note)}</p>` : ''}</header>${body}</section>` : '';
+}
+function renderDesignSystem() {
+  setStateStylesheets(true);
+  const ds = designSystem, pending = ds.status !== 'ready';
+  const head = `<div class="section-toolbar"><h1 class="section-title">Design library <span>${esc(dsName())} design system</span></h1></div>`;
+  const sampled = `<section class="ds-section"><header><h2>Sampled palette</h2><p>Measured live from the pixels of every ${esc(stateName(dsState()))} screen. Coverage is the share of all screenshot area.</p></header><div id="ds-sampled" class="ds-sampled"><p class="ds-progress">Preparing…</p></div></section>`;
+  if (pending) {
+    queueMicrotask(sampleScreens); pollDesignSystem();
+    return `${head}<div class="ds-pending" role="status"><span class="ds-spinner" aria-hidden="true"></span><div><strong>Inferring the ${esc(dsName())} design system</strong><p>Claude is reading the ${esc(stateName(dsState()))} screenshots for color, type, spacing, shape, components, and voice. This page updates on its own when it is ready.</p></div></div>
+      <div class="ds-skeleton" aria-hidden="true">${'<div></div>'.repeat(6)}</div>${sampled}`;
+  }
+  const nav = [['overview','Overview'],['colors','Color'],['type','Typography'],['spacing','Spacing'],['shape','Shape & elevation'],['components','Components'],['icons','Iconography'],['voice','Voice'],['tokens','Tokens']];
+  const basis = ds.basis || {};
+  const overview = dsSection('overview', 'Overview', '', `<p class="ds-summary">${esc(ds.summary || '')}</p><dl class="ds-basis">${[['Source', basis.source], ['Screens', basis.screens], ['Captured', basis.captured], ['Method', basis.method]].filter(([, v]) => v !== undefined && v !== '').map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>${(ds.principles || []).length ? `<ul class="ds-principles">${ds.principles.map(item => `<li><b>${esc(item.title)}</b> ${esc(item.text)}</li>`).join('')}</ul>` : ''}`);
+  const colors = dsSection('colors', 'Color', ds.colorNote, (ds.colors || []).map(group => `<div class="ds-group"><h3>${esc(group.group)}</h3><div class="ds-color-grid">${(group.items || []).map(color => `<article class="ds-color"><div class="ds-swatch" style="background:${esc(color.hex)}"></div><div class="ds-color-info"><b>${esc(color.name)}</b><code>${esc(color.hex)}</code>${color.role ? `<span class="ds-role">${esc(color.role)}</span>` : ''}${color.usage ? `<p>${esc(color.usage)}</p>` : ''}</div>${crops(color.evidence, 96) ? `<div class="ds-evidence">${crops(color.evidence, 96)}</div>` : ''}</article>`).join('')}</div></div>`).join(''));
+  const type = dsSection('type', 'Typography', ds.typeNote, (ds.typography || []).map(item => `<article class="ds-type"><div class="ds-type-sample" style="font-family:${esc(item.fallback || 'inherit')};font-size:${esc(px(item.size))};font-weight:${esc(item.weight || 400)};line-height:${esc(item.lineHeight || 1.25)};letter-spacing:${esc(item.tracking || 'normal')}">${esc(item.sample || item.name)}</div><div class="ds-type-meta"><b>${esc(item.name)}</b><code>${esc([px(item.size), item.weight, item.lineHeight && `${item.lineHeight} lh`].filter(Boolean).join(' · '))}</code><span>${esc(item.family || '')}</span>${item.usage ? `<p>${esc(item.usage)}</p>` : ''}</div>${crops(item.evidence, 200) ? `<div class="ds-evidence">${crops(item.evidence, 200)}</div>` : ''}</article>`).join(''));
+  const spacingList = ds.spacing?.scale || [];
+  const spacing = dsSection('spacing', 'Spacing', ds.spacing?.note, spacingList.length ? `<div class="ds-scale">${spacingList.map(item => `<div class="ds-space"><span style="width:${esc(px(item.value))}"></span><code>${esc(px(item.value))}</code><p>${esc(item.usage || '')}</p></div>`).join('')}</div>` : '');
+  const shape = dsSection('shape', 'Shape & elevation', ds.shapeNote, `${(ds.radii || []).length ? `<h3 class="ds-sub">Corner radius</h3><div class="ds-shapes">${ds.radii.map(item => `<article><div class="ds-radius" style="border-radius:${esc(px(item.value))}"></div><b>${esc(item.name)}</b><code>${esc(px(item.value))}</code><p>${esc(item.usage || '')}</p></article>`).join('')}</div>` : ''}${(ds.elevation || []).length ? `<h3 class="ds-sub">Elevation</h3><div class="ds-shapes">${ds.elevation.map(item => `<article><div class="ds-elevation" style="box-shadow:${esc(item.value)}"></div><b>${esc(item.name)}</b><p>${esc(item.usage || '')}</p></article>`).join('')}</div>` : ''}`);
+  const components = dsSection('components', 'Components', ds.componentNote, (ds.components || []).map(item => `<article class="ds-component"><div class="ds-evidence">${crops(item.evidence, 240)}</div><div class="ds-component-info"><h3>${esc(item.name)}</h3>${item.description ? `<p>${esc(item.description)}</p>` : ''}${item.specs ? `<dl>${Object.entries(item.specs).map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>` : ''}${(item.variants || []).length ? `<p class="ds-variants">Variants: ${item.variants.map(esc).join(' · ')}</p>` : ''}</div></article>`).join(''));
+  const icons = ds.iconography ? dsSection('icons', 'Iconography', '', `<p class="ds-summary">${esc(ds.iconography.style || '')}</p>${(ds.iconography.notes || []).length ? `<ul class="ds-list">${ds.iconography.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}<div class="ds-evidence">${crops(ds.iconography.evidence, 140)}</div>`) : '';
+  const voice = ds.voice ? dsSection('voice', 'Voice', '', `<p class="ds-summary">${esc(ds.voice.tone || '')}</p>${(ds.voice.patterns || []).length ? `<ul class="ds-list">${ds.voice.patterns.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}${(ds.voice.examples || []).length ? `<div class="ds-quotes">${ds.voice.examples.map(q => `<blockquote>${esc(q)}</blockquote>`).join('')}</div>` : ''}`) : '';
+  const tokens = ds.tokens ? dsSection('tokens', 'Tokens', 'Feeds the Future design state. Edit here, and Future screens pick it up.', Object.entries(ds.tokens).map(([mode, values]) => `<div class="ds-group"><h3>${esc(mode)}</h3><table class="ds-tokens"><tbody>${Object.entries(values).map(([k, v]) => `<tr><td><code>--app-${esc(k.replace(/[A-Z]/g, l => '-' + l.toLowerCase()))}</code></td><td>${/^#|^rgb/.test(v) ? `<span class="ds-dot" style="background:${esc(v)}"></span>` : ''}<code>${esc(v)}</code></td></tr>`).join('')}</tbody></table></div>`).join('')) : '';
+  queueMicrotask(sampleScreens);
+  return `${head}<nav class="ds-nav" aria-label="Design system sections">${nav.map(([id, label]) => `<a href="#ds-${id}">${label}</a>`).join('')}</nav>${overview}${colors}${sampled}${type}${spacing}${shape}${components}${icons}${voice}${tokens}`;
+}
+function pollDesignSystem() {
+  if (designSystemPoll || !designSystemPath) return;
+  designSystemPoll = setInterval(async () => {
+    if (currentView !== 'library' || designSystem?.status === 'ready') { clearInterval(designSystemPoll); designSystemPoll = null; return; }
+    try {
+      const next = (await import(`${designSystemPath}?v=${Date.now()}`)).default;
+      if (next?.status === 'ready') { designSystem = next; clearInterval(designSystemPoll); designSystemPoll = null; renderView(); }
+    } catch {}
+  }, 4000);
+}
+const sampledPalettes = new Map();
+async function sampleScreens() {
+  const target = document.getElementById('ds-sampled');
+  const mod = stateApp(dsState());
+  if (!target || !mod) return;
+  const parser = new DOMParser();
+  const sources = [...new Set(mod.NAV.flatMap(board => board.cards).flatMap(card => [...parser.parseFromString(screenHTML(makeState(card, mod), mod), 'text/html').images].map(image => image.getAttribute('src'))).filter(Boolean))];
+  if (!sources.length) { target.innerHTML = '<p class="ds-progress">No screenshots to sample in this design state.</p>'; return; }
+  const key = `${appId}:${sources.join('|')}`;
+  if (!sampledPalettes.has(key)) {
+    const job = (async () => {
+      const buckets = new Map(), canvas = document.createElement('canvas'), context = canvas.getContext('2d', { willReadFrequently: true });
+      let total = 0, done = 0;
+      for (const src of sources) {
+        const image = new Image(); image.src = src;
+        try { await image.decode(); } catch { done++; continue; }
+        canvas.width = 72; canvas.height = Math.max(1, Math.round(72 * image.naturalHeight / image.naturalWidth));
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+        for (let i = 0; i < data.length; i += 4) {
+          if (data[i + 3] < 200) continue;
+          const id = (data[i] >> 3) << 10 | (data[i + 1] >> 3) << 5 | data[i + 2] >> 3;
+          const bucket = buckets.get(id) || { r: 0, g: 0, b: 0, n: 0, screens: new Set() };
+          bucket.r += data[i]; bucket.g += data[i + 1]; bucket.b += data[i + 2]; bucket.n++; bucket.screens.add(src); buckets.set(id, bucket);
+          total++;
+        }
+        done++;
+        const live = document.getElementById('ds-sampled');
+        if (live && done < sources.length) live.innerHTML = `<p class="ds-progress"><span class="ds-bar"><span style="width:${Math.round(done / sources.length * 100)}%"></span></span>Sampling ${done} of ${sources.length} screenshots…</p>`;
+      }
+      const clusters = [];
+      for (const bucket of [...buckets.values()].sort((a, b) => b.n - a.n)) {
+        const color = [bucket.r / bucket.n, bucket.g / bucket.n, bucket.b / bucket.n];
+        const near = clusters.find(cluster => Math.hypot(...cluster.color.map((value, index) => value - color[index])) < 26);
+        if (near) { near.n += bucket.n; bucket.screens.forEach(src => near.screens.add(src)); }
+        else clusters.push({ color, n: bucket.n, screens: new Set(bucket.screens) });
+      }
+      const hex = color => `#${color.map(value => Math.round(value).toString(16).padStart(2, '0')).join('')}`;
+      return clusters.sort((a, b) => b.n - a.n).filter(cluster => cluster.n / total > .002).slice(0, 18).map(cluster => ({ hex: hex(cluster.color), share: cluster.n / total, screens: cluster.screens.size, count: sources.length }));
+    })();
+    sampledPalettes.set(key, job);
+  }
+  const palette = await sampledPalettes.get(key);
+  const live = document.getElementById('ds-sampled');
+  if (live) live.innerHTML = `<div class="ds-sampled-grid">${palette.map(item => `<div class="ds-sample"><span style="background:${item.hex}"></span><code>${item.hex}</code><small>${(item.share * 100).toFixed(item.share < .01 ? 1 : 0)}% · ${item.screens}/${item.count} screens</small></div>`).join('')}</div>`;
 }
 // Flow map: every flow merged into one graph. Pills highlight a single flow and its steps.
 let mapFlow = -1;
@@ -1159,7 +1264,7 @@ $('#prototype-back').addEventListener('click',()=>ctx.back());
 document.addEventListener('keydown',event=>{
   const card = event.target.closest('.card-open');
   if (card && ['Enter',' '].includes(event.key)) { event.preventDefault(); openCardFromElement(card); }
-  const frame = event.target.closest('.present-open');
+  const frame = event.target.closest('.present-open, .ds-crop');
   if (frame && ['Enter',' '].includes(event.key)) { event.preventDefault(); frame.click(); }
 });
 document.addEventListener('click',event=>{

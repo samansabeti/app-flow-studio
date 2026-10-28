@@ -171,7 +171,8 @@ export async function draftExisting(args = []) {
   await writeFile(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`);
   console.log(`Drafted apps/existing.js from ${items.length} screenshots (${frame.width}×${frame.height} frame).
 Copied captures to apps/assets/existing/ and added them to instance.json.
-Next: ask Claude to "complete the Existing draft": name and order each screen, map every visible control, and add journeys for the Flow map.`);
+Next: ask Claude to "complete the Existing draft": name and order each screen, map every visible control, add journeys for the Flow map,
+and infer the client's design system in apps/design-system.js (the Design library shows a loading state until it is ready).`);
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   try { await draftExisting(process.argv.slice(2)); }

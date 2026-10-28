@@ -30,7 +30,7 @@ function options(args, legacy) {
   return result;
 }
 function defaultManifest(appName) {
-  return { app: { id: slug(appName), name: appName, module: './apps/existing.js', stylesheet: './apps/existing.css', findings: './apps/findings.js', variants: [
+  return { app: { id: slug(appName), name: appName, module: './apps/existing.js', stylesheet: './apps/existing.css', findings: './apps/findings.js', designSystem: './apps/design-system.js', variants: [
     { id: 'existing', name: 'Existing', module: './apps/existing.js', stylesheet: './apps/existing.css' },
     { id: 'future', name: 'Future', module: './apps/future.js', stylesheet: './apps/future.css' }
   ], defaultVariant: 'existing' }, files: TEMPLATE_FILES.map(file => `apps/${file}`) };
@@ -76,7 +76,7 @@ Requested local edits can proceed without separate plan or diff approval; teachi
 
 ## Audit workflow
 
-1. Draft Existing from screenshots: \`npm run draft-existing -- <folder>\`, then ask Claude to complete the draft: order and name the screens, map every visible control so Existing clicks like production, and add Flow map journeys.
+1. Draft Existing from screenshots: \`npm run draft-existing -- <folder>\`, then ask Claude to complete the draft: order and name the screens, map every visible control so Existing clicks like production, add Flow map journeys, and infer the design system in apps/design-system.js (its tokens feed Future).
 2. Write findings in apps/findings.js: severity, problem, recommendation, and the Existing and Future card IDs they connect. They appear in the Findings view and in Present mode.
 3. Build the Future proposal in apps/future.js. Inside a prototype, Existing / Future jumps between paired cards.
 4. Frame the review with \`studio.about\` in config.js, then publish with \`npm run share -- --project <vercel-project> [--password]\` once publication is authorized. Without --password the link is public.

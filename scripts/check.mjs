@@ -372,6 +372,50 @@ for (const entry of registry.apps) {
   }
 }
 
+// The inferred design system: pending until Claude writes it, then every value and evidence crop is checked.
+const hex = value => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
+const box = value => Array.isArray(value) && value.length === 4 && value.every(n => typeof n === 'number' && n >= 0 && n <= 100) && value[0] + value[2] <= 100.5 && value[1] + value[3] <= 100.5 && value[2] > 0 && value[3] > 0;
+for (const entry of registry.apps) {
+  if (entry.designSystem === undefined) continue;
+  let ds;
+  try { ds = (await import(new URL(entry.designSystem, root))).default; }
+  catch (error) { failures.push(`${entry.id} design system import: ${error.message}`); continue; }
+  const state = ds?.evidenceState || 'existing';
+  const evidence = (where, list) => {
+    if (list === undefined) return;
+    assert.ok(Array.isArray(list), `${where} evidence must be a list`);
+    for (const item of list) {
+      assert.ok(stateCards(entry, state)?.has(item?.card), `${where} evidence references unknown ${state} card ${item?.card}`);
+      assert.ok(box(item.box), `${where} evidence box must be [left%, top%, width%, height%] inside the frame`);
+    }
+  };
+  check(`${entry.id} design system`, () => {
+    assert.ok(['pending', 'ready'].includes(ds?.status), "status must be 'pending' or 'ready'");
+    if (entry.variants) assert.ok(entry.variants.some(variant => variant.id === state), `unknown design state ${state}`);
+    if (ds.status !== 'ready') return;
+    assert.ok(typeof ds.name === 'string' && ds.name.trim() && typeof ds.summary === 'string', 'name and summary are required');
+    assert.ok(Array.isArray(ds.colors) && ds.colors.length, 'colors need at least one group');
+    for (const group of ds.colors) for (const color of group.items || []) {
+      assert.ok(typeof color.name === 'string' && hex(color.hex), `color ${color?.name} needs a name and #rrggbb hex`);
+      evidence(`color ${color.name}`, color.evidence);
+    }
+    assert.ok(Array.isArray(ds.typography) && ds.typography.length, 'typography needs at least one style');
+    for (const type of ds.typography) {
+      assert.ok(typeof type.name === 'string' && typeof type.size === 'number', `type ${type?.name} needs a name and numeric size`);
+      evidence(`type ${type.name}`, type.evidence);
+    }
+    for (const item of ds.spacing?.scale || []) assert.ok(typeof item.value === 'number', 'spacing values must be numbers');
+    for (const item of ds.radii || []) assert.ok(typeof item.name === 'string' && typeof item.value === 'number', 'radii need a name and number');
+    for (const item of ds.components || []) { assert.ok(typeof item.name === 'string', 'components need a name'); evidence(`component ${item.name}`, item.evidence); }
+    evidence('iconography', ds.iconography?.evidence);
+    if (ds.tokens) {
+      assert.ok(ds.tokens.light, 'tokens need a light mode');
+      for (const [mode, values] of Object.entries(ds.tokens)) for (const key of ['background', 'surface', 'ink', 'muted', 'border', 'accent', 'accentSoft', 'onAccent', 'danger'])
+        assert.ok(hex(values[key]), `${mode} token ${key} must be a #rrggbb hex`);
+    }
+  });
+}
+
 if (failures.length) {
   console.error(`Failed ${failures.length} of ${checks} checks:\n${failures.map(failure => `  - ${failure}`).join('\n')}`);
   process.exitCode = 1;

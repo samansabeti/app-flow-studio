@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 
 export const STUDIO_VERSION = '1.3.0';
 export const STATIC_CORE = ['index.html', 'studio.js', 'studio.css', 'app.css', 'ui.js'];
-export const TEMPLATE_FILES = ['existing.js', 'future.js', 'existing.css', 'future.css', 'findings.js'];
+export const TEMPLATE_FILES = ['existing.js', 'future.js', 'existing.css', 'future.css', 'findings.js', 'design-system.js'];
 export const INSTANCE_CORE = [...STATIC_CORE, 'server.mjs', 'scripts/check.mjs',
   'scripts/create-instance.mjs', 'scripts/create-app.mjs', 'scripts/export-share.mjs', 'scripts/share.mjs', 'scripts/draft-existing.mjs',
   'scripts/instance-files.mjs', 'scripts/project-paths.mjs', 'scripts/check-phone-preview.mjs', 'scripts/qr-code.mjs',
@@ -125,12 +125,13 @@ export function validateManifest(value, nameOverride) {
   }
   function entry(input, variant = false) {
     if (!input || typeof input !== 'object' || Array.isArray(input)) fail('Invalid app registry entry.');
-    const allowed = new Set(variant ? ['id', 'name', 'module', 'stylesheet'] : ['id', 'name', 'module', 'stylesheet', 'findings', 'variants', 'defaultVariant']);
+    const allowed = new Set(variant ? ['id', 'name', 'module', 'stylesheet'] : ['id', 'name', 'module', 'stylesheet', 'findings', 'designSystem', 'variants', 'defaultVariant']);
     for (const key of Object.keys(input)) if (!allowed.has(key)) fail(`Unsupported registry field: ${key}`);
     if (typeof input.id !== 'string' || !/^[a-z0-9][a-z0-9-]{0,79}$/.test(input.id)) fail('App and variant IDs must use lowercase letters, numbers, and hyphens.');
     const result = { id: input.id, name: label(!variant && nameOverride ? nameOverride : input.name), module: modulePath(input.module, 'Module', /\.(?:m?js)$/) };
     if (input.stylesheet !== undefined) result.stylesheet = modulePath(input.stylesheet, 'Stylesheet', /\.css$/);
     if (!variant && input.findings !== undefined) result.findings = modulePath(input.findings, 'Findings module', /\.(?:m?js)$/);
+    if (!variant && input.designSystem !== undefined) result.designSystem = modulePath(input.designSystem, 'Design system module', /\.(?:m?js)$/);
     if (!variant && input.variants !== undefined) {
       if (!Array.isArray(input.variants) || !input.variants.length) fail('Variants must be a nonempty array.');
       result.variants = input.variants.map(item => entry(item, true));

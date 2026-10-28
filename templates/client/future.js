@@ -1,7 +1,14 @@
 // The instance generator replaces these JSON-quoted identity sentinels.
+import designSystem from './design-system.js';
 const APP_ID = "__APP_ID__";
 const APP_NAME = "__APP_NAME__";
-const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+const FONT = (designSystem?.status === 'ready' && designSystem.tokens?.light?.fontBody) || '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+// Once the client's design system is inferred, Future uses its tokens (colors, fonts, button radius).
+const DS_TOKENS = designSystem?.status === 'ready' ? designSystem.tokens : null;
+const FUTURE_TOKENS = DS_TOKENS?.light ? DS_TOKENS : {
+  light:{background:'#f7f8fc',surface:'#ffffff',ink:'#18243a',muted:'#667188',border:'#dce2ed',accent:'#2857c5',accentSoft:'#e6edfc',onAccent:'#ffffff',danger:'#b84040'},
+  dark:{background:'#141d2d',surface:'#1e2b40',ink:'#f0f4ff',muted:'#a7b5ce',border:'#364662',accent:'#a8c4ff',accentSoft:'#2a3b5c',onAccent:'#152341',danger:'#f0a1a1'}
+};
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const primary = (action,label) => `<button type="button" class="proposal-button" data-action="${action}">${label}</button>`;
 const outcome = () => `<div class="proposal-outcome"><span class="proposal-label">Draft outcome</span><strong>Describe the useful result.</strong><p>What should be different after the user takes this step?</p></div>`;
@@ -16,10 +23,8 @@ export default {
     rationale:'These are editable design prompts, not approved requirements or observed behavior.',
     strategies:['**Start small** with one complete journey.','**Explain the limits** wherever an outcome is not built.']
   },
-  tokens:{
-    light:{background:'#f7f8fc',surface:'#ffffff',ink:'#18243a',muted:'#667188',border:'#dce2ed',accent:'#2857c5',accentSoft:'#e6edfc',onAccent:'#ffffff',danger:'#b84040'},
-    dark:{background:'#141d2d',surface:'#1e2b40',ink:'#f0f4ff',muted:'#a7b5ce',border:'#364662',accent:'#a8c4ff',accentSoft:'#2a3b5c',onAccent:'#152341',danger:'#f0a1a1'}
-  },
+  tokens:FUTURE_TOKENS,
+  ...(DS_TOKENS && !DS_TOKENS.dark ? { appearances:['light'] } : {}),
   previewLabel:'Future · Proposal scaffold',
   freshState:()=>({route:'future-start',overlay:null,toast:null}),
   SCREENS:{
