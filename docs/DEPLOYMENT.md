@@ -1,8 +1,10 @@
 # Deployment
 
-## Current live site
+## Status
 
-[App Flow Studio](https://app-flow-studio.vercel.app) is the public site for fictional examples. A Vercel project builds it from this repository, with `main` as its production branch.
+Not deployed. No hosting is connected to this repository; development happens on localhost. The rest of this file describes how the fictional-example site is built and published once hosting is connected and publication is authorized.
+
+## How hosting works
 
 Vercel checks out the repository, runs `npm run build` from its root, and publishes only `dist/`. The current public inventory is `index.html`, `studio.js`, `studio.css`, `app.css`, `ui.js`, sanitized `config.js`, `apps/daylight.js`, and `apps/blank.js`. Copy and screen notes embedded in those browser files are public.
 
@@ -54,6 +56,6 @@ The root directory tells Vercel where to run commands, including tools in `scrip
 
 Commit browser source, reviewed documentation, tools, templates, and safe configuration. Do not commit actual `.env` files, tokens, passwords, private keys, credentials, private notes, or raw chat exports. Keep sensitive working material outside this repository. A placeholder-only `.env.example` may be committed when useful.
 
-`.gitignore` prevents matching untracked files from being added normally. It does not remove already tracked files or erase earlier commits. Review history before the first push; exposed credentials must be revoked or rotated, even if the file is later removed. Never put secrets in browser JavaScript or public build output. Repository visibility and site visibility are separate: `app-flow-studio.vercel.app` is public either way.
+`.gitignore` prevents matching untracked files from being added normally. It does not remove already tracked files or erase earlier commits. Review history before the first push; exposed credentials must be revoked or rotated, even if the file is later removed. Never put secrets in browser JavaScript or public build output. Repository visibility and site visibility are separate: a deployed site is public even while the repository is private.
 
 Before publishing, validate the app, inspect the output inventory, test the deployed interface, and confirm that documentation, tools, secrets, and Git metadata cannot be fetched anonymously. Generated clients use their own `npm run export-share` and `npm run share` workflow and require a separately reviewed audience; see [SHARING.md](SHARING.md).

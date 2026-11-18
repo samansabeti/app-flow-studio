@@ -2,12 +2,18 @@
 
 Reusable product for UX audits of existing apps: Existing screens mapped from screenshots, findings, and Future concepts, in independent generated client instances. When new here, read `README.md`, `app/config.js`, and the relevant module under `app/apps/`; then the doc for the task: `docs/APP-MODULES.md` (module contract, config), `docs/AUDIT-WORKFLOW.md` (captures to findings), `docs/SHARING.md` (export, publish), `docs/KICKOFF.md` (new instance).
 
-Requested local edits are authorized: implement, check the affected behavior, report. Ask only for material ambiguity or anything outside scope. Group local commits at useful milestones.
+## Current state
+
+- Developed on localhost only (`npm run dev`, http://127.0.0.1:8002). Not deployed: no hosting is connected to this repo. GitHub `samansabeti/app-flow-studio` is private for now and will be made public.
+- The built-in demo is the fictional, code-drawn Daylight app plus a Blank app. A screenshot-based demo instance is planned from screenshots Sam will supply; until then the client template starts empty with three example journeys.
+- Ingest is production screenshots (captures inbox → `npm run import-captures`). Screen-recording extraction exists but is secondary.
+
+Requested local edits are authorized: implement, check the affected behavior, report. Ask only for material ambiguity or anything outside scope. Group local commits at useful milestones. Commits credit Sam only: no Claude/AI co-author trailers or generated-by lines.
 
 ## Security and publication
 
 - Treat this repository as public (it will be published). Use only invented, neutral examples (fictional apps, people, data). Never commit client names, screenshots, identifiers, findings, or paths to private material, here or in templates. Client work lives in a generated instance outside this repo.
-- Keep everything local. Deploying, publishing, `npm run share`, pushing a branch that auto-deploys (`main` here), connecting accounts, sending invitations, and real network operations all need explicit authorization of target and audience. Export (`npm run export-share`) and build are local and are not publishing.
+- Keep everything local. Pushing to GitHub, deploying, publishing, `npm run share`, connecting hosting or accounts, sending invitations, and real network operations all need explicit authorization of target and audience. Export (`npm run export-share`) and build are local and are not publishing.
 - Captures inboxes, recordings, and frames stay outside every project folder. Never put secrets, `.env` files, private notes, or chat exports in the repo. Public output is only the explicit browser inventory in `dist/`; never copy the repository wholesale.
 - `npm run dev` stays loopback-only; LAN access only through explicit `npm run dev:phone`.
 

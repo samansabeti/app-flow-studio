@@ -10,6 +10,8 @@ Each audit lives in its own generated **instance**, an independent copy with Ove
 
 Plain HTML, CSS, and JavaScript with a dependency-free Node server. No build framework, no install step.
 
+**Status:** in active development on localhost; private for now, public soon. A screenshot-based demo is coming; today's built-in example is the fictional Daylight app.
+
 ## Quick start
 
 Requires Node.js 18 or later.
