@@ -4,7 +4,7 @@ Reusable product for UX audits of existing apps: Existing screens mapped from sc
 
 ## Current state
 
-- Developed on localhost only (`npm run dev`, http://127.0.0.1:8002). Not deployed: no hosting is connected to this repo. GitHub `samansabeti/app-flow-studio` is private for now and will be made public.
+- Developed on localhost only (`npm run dev`, http://127.0.0.1:8002). Not deployed: no hosting is connected to this repo. GitHub `samansabeti/app-flow-studio` is public (template repository).
 - The built-in demo is the fictional, code-drawn Daylight app plus a Blank app. A screenshot-based demo instance is planned from screenshots Sam will supply; until then the client template starts empty with three example journeys.
 - Ingest is production screenshots (captures inbox → `npm run import-captures`). Screen-recording extraction exists but is secondary.
 - Audience: recruiters reviewing Sam's work and anyone (including non-coders) using it for their own audits. MIT licensed. README is the pitch; `docs/GETTING-STARTED.md` is the no-coding-assumed path. Keep both accurate when commands change. GitHub Actions (`.github/workflows/check.yml`) runs check, check:build and build.
