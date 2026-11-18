@@ -374,7 +374,9 @@ kbd { padding: 2px 4px; margin: 0 2px; border: 1px solid var(--line); border-rad
   .token-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
 }
 @media (max-width: 480px) {
-  #app-picker { max-width: 125px; }
+  /* On small phones the app picker names the workspace; the studio brand would only squeeze it. */
+  .topbar-identity:has(#app-picker:not([hidden])) .studio-brand { display: none; }
+  #app-picker:not([hidden]) { flex: 1 1 auto; max-width: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
