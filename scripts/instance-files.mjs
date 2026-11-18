@@ -7,6 +7,8 @@ export const STATIC_CORE = ['index.html', 'studio.js', 'studio.css', 'app.css', 
 export const TEMPLATE_FILES = ['existing.js', 'future.js', 'existing.css', 'future.css', 'findings.js', 'design-system.js'];
 export const INSTANCE_CORE = [...STATIC_CORE, 'server.mjs', 'scripts/check.mjs',
   'scripts/create-instance.mjs', 'scripts/create-app.mjs', 'scripts/export-share.mjs', 'scripts/share.mjs', 'scripts/draft-existing.mjs', 'scripts/scan-fonts.mjs',
+  'scripts/captures-inbox.mjs', 'scripts/import-captures.mjs', 'scripts/add-captures.mjs', 'scripts/extract-frames.mjs', 'scripts/extract-frames.swift',
+  'scripts/blur-regions.mjs', 'scripts/blur-regions.swift',
   'scripts/instance-files.mjs', 'scripts/project-paths.mjs', 'scripts/check-phone-preview.mjs', 'scripts/qr-code.mjs',
   'scripts/vendor/qrcodegen.mjs', ...TEMPLATE_FILES.map(file => `templates/client/${file}`)];
 const extensions = new Set(['.js', '.mjs', '.css', '.json', '.svg', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.ico', '.woff', '.woff2', '.ttf', '.otf', '.md', '.txt']);

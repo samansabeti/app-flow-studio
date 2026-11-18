@@ -19,3 +19,4 @@ secrets.*
 *.pem
 *.zip
 *.tar.gz
+.claude/worktrees/

@@ -7,7 +7,7 @@
 //   spacing: { note, scale: [{ value, usage }] }, radii: [{ name, value, usage }], elevation: [{ name, value (CSS shadow), usage }]
 //   components: [{ name, description, specs: { label: value }, variants: [], evidence: [] }]
 //   iconography: { style, notes: [], evidence: [] }, voice: { tone, patterns: [], examples: [] }
-//   fonts: [{ family, src: './apps/assets/fonts/x.woff2', weight, style }]   font files the app ships (see npm run scan-fonts); keep the license file alongside
+//   fonts: [{ family, src: './apps/assets/fonts/<file>.woff2', weight, style }]   font files the app ships (see npm run scan-fonts); keep the license file alongside
 //   tokens: { light: { background, surface, ink, muted, border, accent, accentSoft, onAccent, danger, fontBody, fontDisplay, radiusButton }, dark?: {...} }
 // tokens feed the Future design state. Measure, don't guess: say "inferred" where a value is a judgment.
 export default {

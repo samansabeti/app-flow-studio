@@ -36,7 +36,7 @@ function defaultManifest(appName) {
   ], defaultVariant: 'existing' }, files: TEMPLATE_FILES.map(file => `apps/${file}`) };
 }
 function documents(opts, manifest, kind) {
-  const studio = manifest.studio ?? (kind === 'template' ? { showOverview: true, defaultView: 'overview', sidebar: { collapsible: true } } : undefined);
+  const studio = manifest.studio ?? (kind === 'template' ? { showOverview: true, defaultView: 'overview' } : undefined);
   const files = new Map(), config = { studioName: opts.name, ...(studio ? { studio } : {}), defaultApp: manifest.app.id, apps: [manifest.app] };
   files.set('config.js', configText(config));
   files.set('package.json', json({ name: slug(opts.name), version: '1.0.0', private: true, type: 'module', description: `${opts.name}: an isolated local App Flow Studio instance.`, scripts: {
@@ -44,13 +44,14 @@ function documents(opts, manifest, kind) {
     'dev:phone': `node server.mjs --phone --port ${opts.port > 0 && opts.port < 65535 ? opts.port + 1 : 0}`,
     check: 'node scripts/check.mjs', 'check:phone': 'node scripts/check-phone-preview.mjs', 'export-share': 'node scripts/export-share.mjs',
     share: 'node scripts/share.mjs', 'draft-existing': 'node scripts/draft-existing.mjs', 'scan-fonts': 'node scripts/scan-fonts.mjs',
+    'import-captures': 'node scripts/import-captures.mjs', 'extract-frames': 'node scripts/extract-frames.mjs', 'blur-regions': 'node scripts/blur-regions.mjs',
     'create-instance': 'node scripts/create-instance.mjs', 'create-app': 'node scripts/create-app.mjs'
   }, engines: { node: '>=18' } }));
   files.set('.gitignore', '# Local and generated files\nnode_modules/\n.env\n.env.*\n!.env.example\n.DS_Store\n*.log\ndist/\n.app-flow-exports/\n.app-flow-export-*/\n');
   files.set('.codex/environments/environment.toml', `version = 1\nname = ${JSON.stringify(opts.name)}\n\n[setup]\nscript = ""\n\n[[actions]]\nname = "Run"\nicon = "run"\ncommand = "npm run dev"\n\n[[actions]]\nname = "Phone preview"\nicon = "run"\ncommand = "npm run dev:phone"\n\n[[actions]]\nname = "Check"\ncommand = "npm run check"\n\n[[actions]]\nname = "Export"\ncommand = "npm run export-share"\n`);
   files.set('README.md', `# ${opts.name}
 
-An independent local workspace for ${opts.appName}, generated with App Flow Studio ${STUDIO_VERSION}. Client content and changes stay in this folder. The product master and other clients are unchanged.
+An independent local workspace for ${opts.appName}, generated with App Flow Studio ${STUDIO_VERSION}. Client content and changes stay in this folder. App Flow Studio and other instances are unchanged.
 
 ## Run
 
@@ -62,9 +63,9 @@ Phone preview is opt-in: \`npm run dev:phone\` binds to an available private LAN
 
 ## Work here
 
-Read AGENTS.md and KICKOFF.md. The registry is config.js; start with ${manifest.app.module.slice(2)}. Existing and Future are separate design states. ${kind === 'import' ? 'Imported content comes only from the explicit import allowlist. Imported file bytes and the default design state stay unchanged; --app-name sets the registry display name without rewriting module identity or screen copy. Preserve supplied evidence and distinguish it from locally simulated transitions.' : 'A new client opens the Existing Overview. Existing is an evidence placeholder, not a production audit. Future is an editable two-screen proposal. Replace these small templates with the client’s journey.'} Returning browsers keep their saved design-state selection.
+Read AGENTS.md and KICKOFF.md. The registry is config.js; start with ${manifest.app.module.slice(2)}. Existing and Future are separate design states. ${kind === 'import' ? 'Imported content comes only from the explicit import allowlist. Imported file bytes and the default design state stay unchanged; --app-name sets the registry display name without rewriting module identity or screen copy. Preserve supplied evidence and distinguish it from locally simulated transitions.' : 'A new client opens the Existing Overview. Existing starts empty, with example journeys shown as "Not captured yet"; import captures to fill it. Future is an editable two-screen proposal. Replace these small templates with the client’s journey.'} Returning browsers keep their saved design-state selection.
 
-Use Overview, Screens, Flow map, and Design library together. Overview is optional app metadata, separate from screen cards. config.js can set \`studio.showOverview\`, \`defaultView\`, \`headerTitle\`, \`headerSubtitle\`, \`showDesignLibrary\`, and \`sidebar: { collapsible, scope }\`. Set \`studio.appearance\` to light or dark for a fixed Studio appearance, or omit it to keep switching available. A local \`studio.icon\` must be an image under apps/ and included in the exported inventory. These preferences do not change app appearance.
+Use Overview, Screens, Flow map, and Design library together. Overview is optional app metadata, separate from screen cards. config.js can set \`studio.showOverview\`, \`defaultView\`, \`headerTitle\`, \`headerSubtitle\`, and \`showDesignLibrary\`. Views sit in a top bar (bottom tabs on a phone). Set \`studio.appearance\` to light or dark for a fixed Studio appearance, or omit it to keep switching available. A local \`studio.icon\` must be an image under apps/ and included in the exported inventory. These preferences do not change app appearance.
 
 Keep screen markup, action metadata, context, and journeys aligned. Start card and overlay detail panels with two concise sentences: \`approach\` describes what the screen does, and \`rationale\` explains why. These summaries appear above entry instructions and interactions. Legacy \`rationale\` arrays and \`notes\` remain supported. Use stable, descriptive route names and card IDs as implementation and flow references; keep them consistent across SCREENS, NAV, ACTIONS, and FLOWS when changing display copy.
 
@@ -77,6 +78,7 @@ Requested local edits can proceed without separate plan or diff approval; teachi
 ## Audit workflow
 
 1. Draft Existing from screenshots: \`npm run draft-existing -- <folder>\`, then ask Claude to complete the draft: order and name the screens, map every visible control so Existing clicks like production, add Flow map journeys, and infer the design system in apps/design-system.js (its tokens feed Future).
+   Or keep captures in one inbox folder outside this project: set \`"capturesDir": "../captures"\` in instance.json (or the CAPTURES_DIR environment variable), name its subfolders NN-<journey id> in the order of apps/findings.js journeys (01-signing-up, 02-first-task), and run \`npm run import-captures\`; later runs add only new shots, marked "NEW, needs completing". macOS only: \`npm run extract-frames\` turns screen recordings in the inbox's recordings/ folder into still frames, and \`npm run blur-regions\` redacts private details irreversibly.
 2. Write findings in apps/findings.js: severity, problem, recommendation, and the Existing and Future card IDs they connect. They appear in the Findings view and in Present mode.
 3. Build the Future proposal in apps/future.js. Inside a prototype, Existing / Future jumps between paired cards.
 4. Frame the review with \`studio.about\` in config.js, then publish with \`npm run share -- --project <vercel-project> [--password]\` once publication is authorized. Without --password the link is public.
@@ -98,7 +100,7 @@ instance.json records the generator version, instance ID, source kind, registry,
 When new to this client, read README.md, config.js, instance.json, and the active app module; reuse that context for subsequent edits. Use KICKOFF.md for the working brief.
 
 - Proceed with requested routine local edits without separate plan or diff approval. Teaching is opt-in; ask only for material ambiguities or actions outside the authorized scope. Group local commits around useful milestones.
-- Work in this client folder. Do not edit the product master or another client.
+- Work in this client folder. Do not edit App Flow Studio or another instance.
 - Existing holds source evidence; Future holds proposed changes. Preserve supplied originals and distinguish screenshot-confirmed content from simulated transitions and draft copy. Never fabricate missing evidence.
 - Keep behavior local unless the user explicitly authorizes a real integration or publication. A push that triggers deployment is publication; confirm the target and audience are covered by that authorization. Do not authenticate, purchase, upload, deploy, or send messages merely because this is a prototype.
 - Keep plain HTML/CSS/JavaScript and the dependency-free server. Shared studio behavior belongs in studio.js/studio.css; client state, screens, tokens, actions, overlays, boards, and journeys belong in the app module.
@@ -133,7 +135,7 @@ Use this brief to continue this client instance:
 - Design references and constraints:
 - Questions that materially block the design:
 
-Add app content to instance.json’s files list as it is introduced. If exportFiles is present, maintain that explicit subset with all active browser resources while keeping unused source evidence out. Use the optional app overview for the proposal and evidence limits, not as an invented production screen. Write each detail summary as a short approach sentence and rationale sentence above its entry instructions and interactions, and use stable route names and card IDs to connect the implementation, screen cards, and flows. This copy is independent; changes do not update the product master or another client.
+Add app content to instance.json’s files list as it is introduced. If exportFiles is present, maintain that explicit subset with all active browser resources while keeping unused source evidence out. Use the optional app overview for the proposal and evidence limits, not as an invented production screen. Write each detail summary as a short approach sentence and rationale sentence above its entry instructions and interactions, and use stable route names and card IDs to connect the implementation, screen cards, and flows. This copy is independent; changes do not update App Flow Studio or another instance.
 `);
   return files;
 }

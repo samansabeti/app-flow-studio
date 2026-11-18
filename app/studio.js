@@ -156,6 +156,11 @@ function makeState(card, mod = app) {
   card.setup?.(next);
   return next;
 }
+// Screen types shown to reviewers. Ready and loading stay internal (loading drives ctx.advance); sheets count as dialogs.
+function shownKind(card) {
+  return card.kind === 'ready' || card.kind === 'loading' || !card.kind ? '' : card.kind === 'sheet' ? 'dialog' : card.kind;
+}
+function kindLabel(value) { return value === 'dialog' ? 'Dialog' : value[0].toUpperCase() + value.slice(1); }
 function currentCard() {
   return cards.find(card => card.route === state.route && card.match?.(state))
     || cards.find(card => card.route === state.route && card.kind === 'ready')
@@ -178,11 +183,10 @@ function applyStudioTheme() {
   document.documentElement.dataset.theme = studioTheme;
   const button = $('#studio-theme');
   button.hidden = Boolean(fixedStudioAppearance);
-  button.closest('.sidebar-bottom').hidden = Boolean(fixedStudioAppearance);
   if (fixedStudioAppearance) return;
   button.setAttribute('aria-label', `Switch studio to ${studioTheme === 'dark' ? 'light' : 'dark'} appearance`);
   button.title = `Studio appearance: ${studioTheme}`;
-  button.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor"/></svg><span>Studio appearance</span>`;
+  button.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor"/></svg>`;
 }
 function applyAppTheme() {
   $('#app-theme').value = appTheme;
@@ -247,14 +251,18 @@ async function loadApp(id, requestedVariant) {
     try { localStorage.setItem(`app-flow-studio:app:${appId}:state`, appVariant); } catch {}
   }
   cards = app.NAV.flatMap(board => board.cards.map(card => ({ ...card, boardId: board.id, boardTitle: board.title })));
-  selectedCard = null; reviewSequence = null; mapFlow = -1; state = app.freshState(); history = []; search = ''; kind = 'all'; boardFilter = 'all';
+  const journeyTitles = new Map(journeyGroups().filter(group => group.board).map(group => [group.board.id, group.title]));
+  for (const card of cards) card.boardTitle = journeyTitles.get(card.boardId) || card.boardTitle;
+  selectedCard = null; reviewSequence = null; mapFlow = -1; mapJourney = null; state = app.freshState(); history = []; search = ''; kind = 'all'; boardFilter = 'all'; findingsJourney = 'all';
   $('#app-picker').value = appId;
+  // The app name sits beside the studio name only when it adds something: one app, no custom title, not already in the name.
   $('#breadcrumb-app').textContent = app.identity.name;
+  $('#breadcrumb-app').hidden = Boolean(headerTitle) || registry.apps.length > 1
+    || studioName.toLowerCase().includes(String(app.identity.name).toLowerCase());
   const stateToggle = $('#app-variant');
   stateToggle.hidden = variants.length < 2;
   stateToggle.innerHTML = variants.map(item => `<button type="button" data-app-variant="${esc(item.id)}" aria-pressed="${item.id === appVariant}">${esc(item.name)}</button>`).join('');
   document.title = studioOptions.headerTitle || `${app.identity.name}${variant ? ` · ${variant.name}` : ''} · ${studioName}`;
-  $('#board-nav').innerHTML = app.NAV.map((board,index) => `<a href="#board-${esc(board.id)}" data-board="${esc(board.id)}" aria-label="${esc(board.title)} · ${board.cards.length} ${board.cards.length === 1 ? 'screen' : 'screens'}" title="${esc(board.title)} · ${board.cards.length} ${board.cards.length === 1 ? 'screen' : 'screens'}"><span class="board-short" aria-hidden="true">${index + 1}</span><span class="board-nav-label">${esc(board.title)}</span><span class="board-nav-count" aria-hidden="true">${board.cards.length}</span></a>`).join('');
   const appearances = app.appearances || ['light', 'dark'];
   const savedTheme = savedAppearance(`app-flow-studio:app:${appId}:theme`);
   appTheme = appearances.includes(savedTheme) ? savedTheme : appearances[0];
@@ -287,8 +295,11 @@ function renderOverview() {
     if (['http:','https:'].includes(url.protocol)) referenceURL = url.href;
   } catch {}
   const items = findingItems();
-  const findingsLink = items.length ? `<section class="overview-findings"><h2>${items.length} ${items.length === 1 ? 'finding' : 'findings'}</h2><p>${esc(severitySummary(items))}</p><div class="overview-findings-actions"><button type="button" class="text-button" data-view="findings">View findings</button><button type="button" class="text-button" data-present="0">Present</button></div></section>` : '';
-  return `<article class="studio-overview" aria-labelledby="overview-title">${renderAbout()}<header><p class="overview-label">${esc(overview.eyebrow || 'Overview')}</p><h1 id="overview-title">${esc(overview.title || 'Project overview')}</h1>${overview.description ? `<p class="overview-description">${esc(overview.description)}</p>` : ''}</header>${overview.rationale ? `<p class="overview-rationale">${esc(overview.rationale)}</p>` : ''}${strategies.length ? `<section class="overview-approach" aria-labelledby="overview-approach-title"><h2 id="overview-approach-title">${esc(approachTitle)}</h2><ul>${strategies.map(item=>`<li>${strategyHTML(item)}</li>`).join('')}</ul></section>` : ''}${referenceURL ? `<footer class="overview-reference"><a href="${esc(referenceURL)}" target="_blank" rel="noopener noreferrer">${esc(overview.reference.label || 'Read the reference')}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h11v11M19 5 5 19"/></svg></a></footer>` : ''}${findingsLink}</article>`;
+  const opportunityCount = findingRegistry('opportunities').length;
+  // Journeys lead the Overview; opportunities follow as early, unvalidated directions (no impact labels here).
+  const opportunityList = opportunityCount ? `<ol class="overview-opportunities">${findingRegistry('opportunities').map(record => `<li><span>${esc(record.title)}</span></li>`).join('')}</ol>` : '';
+  const findingsLink = items.length ? `<section class="overview-findings" aria-labelledby="overview-findings-title"><h2 id="overview-findings-title">${opportunityCount ? 'Early directions (not yet validated)' : plural(items.length, 'finding')}</h2><p>${opportunityCount ? 'First-pass ideas from the captured screens, still being reviewed.' : esc(severitySummary(items))}</p>${opportunityList}<div class="overview-findings-actions"><button type="button" class="button-primary" data-view="findings">View findings</button><button type="button" class="button-secondary" data-present="0">Present</button></div></section>` : '';
+  return `<article class="studio-overview" aria-labelledby="overview-title">${renderAbout()}<header><p class="overview-label">${esc(overview.eyebrow || 'Overview')}</p><h1 id="overview-title">${esc(overview.title || 'Project overview')}</h1>${overview.description ? `<p class="overview-description">${esc(overview.description)}</p>` : ''}</header>${overview.rationale ? `<p class="overview-rationale">${esc(overview.rationale)}</p>` : ''}${renderJourneyTable()}${findingsLink}${strategies.length ? `<section class="overview-approach" aria-labelledby="overview-approach-title"><h2 id="overview-approach-title">${esc(approachTitle)}</h2><ul>${strategies.map(item=>`<li>${strategyHTML(item)}</li>`).join('')}</ul></section>` : ''}${referenceURL ? `<footer class="overview-reference"><a href="${esc(referenceURL)}" target="_blank" rel="noopener noreferrer">${esc(overview.reference.label || 'Read the reference')}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h11v11M19 5 5 19"/></svg></a></footer>` : ''}</article>`;
 }
 // Review framing for someone opening a shared link without a walkthrough.
 function renderAbout() {
@@ -296,20 +307,62 @@ function renderAbout() {
   if (!about) return '';
   const rows = [['Prepared for', about.preparedFor], ['Prepared by', about.preparedBy], ['Date', about.date], ['Scope', about.scope]]
     .filter(([, value]) => typeof value === 'string' && value.trim());
+  const open = cards.length ? 'Open any screen to try it.' : 'Screens appear here once they are captured.';
   const note = about.note || (stateEntries.length > 1
-    ? `Open any screen to try it. ${stateEntries.map(item => item.name).join(' and ')} are separate design states; switch between them at the top. Every interaction is simulated locally.`
-    : 'Open any screen to try it. Every interaction is simulated locally.');
+    ? `${open} ${stateEntries.map(item => item.name).join(' and ')} are separate design states; switch between them at the top. Every interaction is simulated locally.`
+    : `${open} Every interaction is simulated locally.`);
   return `<aside class="overview-about" aria-label="About this review">${rows.length ? `<dl>${rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl>` : ''}<p>${esc(note)}</p></aside>`;
 }
 
 // Findings link captured evidence to the proposal that addresses it.
 const severityOrder = ['high', 'medium', 'low'];
 const findingStates = () => ({ evidence: findings?.evidenceState || 'existing', proposal: findings?.proposalState || 'future' });
+// Optional registries: journeys tag findings; opportunities group them, listed in priority order.
+const findingRegistry = key => Array.isArray(findings?.[key]) ? findings[key].filter(record => typeof record?.id === 'string' && record.id) : [];
+const findingOpportunity = item => findingRegistry('opportunities').find(record => record.id === item.opportunity) || null;
+const findingJourney = item => findingRegistry('journeys').find(record => record.id === item.journey) || null;
+// The journey is the one grouping word everywhere. Screens (and its jump links), Flow map pills and the Overview list the
+// journeys of the findings registry in its order. A screen group (NAV entry) belongs to a journey when its id, or its
+// journey field, is the journey id. Only the evidence state lists journeys that have no screens yet ("Not captured
+// yet"); groups that match no journey follow in their own order.
+const isEvidenceState = () => !stateEntries.length || appVariant === findingStates().evidence;
+function journeyGroups() {
+  const used = new Set(), groups = [];
+  const group = (board, journey) => ({ id: board?.id || journey.id, title: journey?.title || board.title,
+    summary: journey?.summary || board?.description || '', journey: journey?.id || null, board: board || null,
+    cards: board ? cards.filter(card => card.boardId === board.id) : [] });
+  for (const journey of findingRegistry('journeys')) {
+    const board = app.NAV.find(item => !used.has(item) && (item.id === journey.id || item.journey === journey.id));
+    if (!board && !isEvidenceState()) continue;
+    if (board) used.add(board);
+    groups.push(group(board, journey));
+  }
+  for (const board of app.NAV) if (!used.has(board)) groups.push(group(board, null));
+  return groups;
+}
+function renderJourneyTable() {
+  if (!isEvidenceState()) return '';
+  const groups = journeyGroups().filter(group => group.journey);
+  if (!groups.length) return '';
+  const items = findingItems();
+  const rows = groups.map(group => {
+    const count = group.cards.length;
+    return `<tr><th scope="row"><a href="#board-${esc(group.id)}" data-board="${esc(group.id)}">${esc(group.title)}</a>${group.summary ? `<p>${esc(group.summary)}</p>` : ''}</th><td${count ? '' : ' class="journey-pending"'}>${count ? plural(count, 'screen') : 'Not captured yet'}</td>${items.length ? `<td>${items.filter(item => item.journey === group.journey).length}</td>` : ''}</tr>`;
+  }).join('');
+  return `<section class="overview-journeys" aria-labelledby="overview-journeys-title"><h2 id="overview-journeys-title">${plural(groups.length, 'journey')}</h2><table class="journey-table"><thead><tr><th scope="col">Journey</th><th scope="col">Screens</th>${items.length ? '<th scope="col">Findings</th>' : ''}</tr></thead><tbody>${rows}</tbody></table></section>`;
+}
+let findingsJourney = 'all';
+// One order everywhere: opportunity priority (ungrouped last), then severity, then file order.
+// Findings numbers and data-present indexes are positions in this list.
 function findingItems() {
   const items = Array.isArray(findings?.items) ? findings.items : [];
+  const opportunities = findingRegistry('opportunities').map(record => record.id);
+  const rank = item => opportunities.includes(item.opportunity) ? opportunities.indexOf(item.opportunity) : opportunities.length;
   return items.map((item, index) => ({ ...item, order: index }))
-    .sort((a, b) => severityOrder.indexOf(a.severity) - severityOrder.indexOf(b.severity) || a.order - b.order);
+    .sort((a, b) => rank(a) - rank(b) || severityOrder.indexOf(a.severity) - severityOrder.indexOf(b.severity) || a.order - b.order);
 }
+const plural = (count, word) => `${count} ${count === 1 ? word : `${word}s`}`;
+const impactLabel = level => ['high', 'medium', 'low'].includes(level) ? `${level[0].toUpperCase() + level.slice(1)} impact` : '';
 function severitySummary(items) {
   return severityOrder.map(level => [level, items.filter(item => item.severity === level).length])
     .filter(([, count]) => count).map(([level, count]) => `${count} ${level}`).join(' · ');
@@ -329,20 +382,46 @@ function findingLinks(stateId, ids = []) {
   const links = ids.map(id => findCard(stateId, id) ? `<button type="button" class="finding-card-link" data-state-card="${esc(stateId)}" data-card="${esc(id)}">${esc(findCard(stateId, id).title)}</button>` : '').join('');
   return links ? `<div class="finding-links"><span>${esc(stateName(stateId))}</span>${links}</div>` : '';
 }
+function journeyTag(item) {
+  const journey = findingJourney(item);
+  return journey ? `<span class="journey-tag">${esc(journey.title)}</span>` : '';
+}
 function renderFindings() {
   const items = findingItems();
   const { evidence, proposal } = findingStates();
-  return `<div class="section-toolbar"><h1 class="section-title">Findings <span>${esc(severitySummary(items))}</span></h1><button type="button" class="text-button present-start" data-present="0">Present</button></div>
-    ${findings.summary ? `<p class="findings-summary">${esc(findings.summary)}</p>` : ''}
-    <ol class="findings-list">${items.map((item, index) => `<li class="finding" id="finding-${esc(item.id)}">
+  const journeys = findingRegistry('journeys'), opportunities = findingRegistry('opportunities');
+  if (!journeys.some(journey => journey.id === findingsJourney)) findingsJourney = 'all';
+  // Numbers and Present indexes come from the full ordered list, so filtering never renumbers.
+  const indexed = items.map((item, index) => ({ item, index }));
+  const visible = indexed.filter(({ item }) => findingsJourney === 'all' || item.journey === findingsJourney);
+  const heading = opportunities.length ? 'h3' : 'h2';
+  const findingHTML = ({ item, index }) => `<li class="finding" id="finding-${esc(item.id)}">
       <span class="finding-number" aria-hidden="true">${String(index + 1).padStart(2, '0')}</span>
       <div class="finding-body">
-        <div class="finding-heading">${severityTag(item.severity)}<h2>${esc(item.title)}</h2></div>
+        <div class="finding-heading">${severityTag(item.severity)}<${heading}>${esc(item.title)}</${heading}>${journeyTag(item)}</div>
         ${item.problem ? `<p class="finding-problem">${esc(item.problem)}</p>` : ''}
         ${item.recommendation ? `<p class="finding-recommendation"><strong>Recommendation</strong> ${esc(item.recommendation)}</p>` : ''}
         <div class="finding-footer">${findingLinks(evidence, item.evidence)}${findingLinks(proposal, item.proposal)}<button type="button" class="text-button" data-present="${index}">Present</button></div>
       </div>
-    </li>`).join('')}</ol>`;
+    </li>`;
+  const list = entries => `<ol class="findings-list">${entries.map(findingHTML).join('')}</ol>`;
+  let body;
+  if (!visible.length) body = `<p class="findings-empty">No findings for this journey yet.</p>`;
+  else if (!opportunities.length) body = list(visible);
+  else {
+    const groups = [...opportunities.map((opportunity, rank) => ({ opportunity, rank, entries: visible.filter(({ item }) => item.opportunity === opportunity.id) })),
+      { opportunity: null, entries: visible.filter(({ item }) => !findingOpportunity(item)) }];
+    body = groups.filter(group => group.entries.length || (group.opportunity && findingsJourney === 'all')).map(({ opportunity, rank, entries }) => {
+      const id = opportunity ? `opportunity-${esc(opportunity.id)}` : 'opportunity-ungrouped';
+      const meta = opportunity ? `<span class="opportunity-rank">Opportunity ${rank + 1}</span>${impactLabel(opportunity.impact) ? `<span class="impact impact-${esc(opportunity.impact)}">${esc(impactLabel(opportunity.impact))}</span>` : ''}` : '';
+      return `<section class="opportunity" aria-labelledby="${id}"><header class="opportunity-heading"><div class="opportunity-meta">${meta}<span class="opportunity-count">${plural(entries.length, 'finding')}</span></div><h2 id="${id}">${esc(opportunity ? opportunity.title : 'Not yet grouped')}</h2>${opportunity?.summary ? `<p>${esc(opportunity.summary)}</p>` : ''}</header>${entries.length ? list(entries) : '<p class="findings-empty">No findings grouped here yet.</p>'}</section>`;
+    }).join('');
+  }
+  const filter = journeys.length ? `<div class="filters"><select id="journey-filter" aria-label="Filter by journey"><option value="all">All journeys</option>${journeys.map(journey => `<option value="${esc(journey.id)}" ${findingsJourney === journey.id ? 'selected' : ''}>${esc(journey.title)} (${items.filter(item => item.journey === journey.id).length})</option>`).join('')}</select></div>` : '';
+  const summary = [opportunities.length ? `${opportunities.length} ${opportunities.length === 1 ? 'opportunity' : 'opportunities'}` : '', severitySummary(visible.map(({ item }) => item))].filter(Boolean).join(' · ');
+  return `<div class="section-toolbar findings-toolbar"><h1 class="section-title">Findings ${findings.status ? `<em class="findings-status">${esc(findings.status)}</em>` : ''}<span aria-live="polite">${esc(summary)}</span></h1><div class="findings-actions">${filter}<button type="button" class="button-secondary present-start" data-present="${visible[0]?.index ?? 0}">Present</button></div></div>
+    ${findings.summary ? `<p class="findings-summary">${esc(findings.summary)}</p>` : ''}
+    ${body}`;
 }
 // The counterpart of a card in another design state: an explicit compare, else a finding pair.
 function counterpartFor(card) {
@@ -368,21 +447,25 @@ function cardHTML(card) {
     <div role="button" tabindex="0" class="card-open" data-open-card="${esc(card.id)}" aria-label="Open ${esc(card.title)}">
       <div class="thumb" aria-hidden="true" inert><div class="phone" style="${tokensStyle()}">${preview}</div></div>
     </div>
-    <div class="card-details"><div class="card-name"><h3>${esc(card.title)}</h3><span class="status status-${esc(card.status.toLowerCase())}">${esc(card.status)}</span></div><div class="card-route">/${esc(card.route)}${card.kind !== 'ready' ? ` · ${esc(card.kind)}` : ''}</div></div>
+    <div class="card-details"><div class="card-name"><h3>${esc(card.title)}</h3>${/composite/.test(card.id) ? '<span class="status">Composite</span>' : card.status !== 'Captured' ? `<span class="status status-${esc(card.status.toLowerCase())}">${esc(card.status)}</span>` : ''}</div>${shownKind(card) ? `<div class="card-route">${esc(kindLabel(shownKind(card)))}</div>` : ''}</div>
   </article>`;
 }
 function galleryCards() {
-  return cards.filter(card => (kind === 'all' || card.kind === kind) && (boardFilter === 'all' || card.boardId === boardFilter) && [card.title,card.boardTitle,card.route,card.kind,card.status,card.how].join(' ').toLowerCase().includes(search.toLowerCase()));
+  return cards.filter(card => (kind === 'all' || shownKind(card) === kind) && (boardFilter === 'all' || card.boardId === boardFilter) && [card.title,card.boardTitle,card.route,shownKind(card),card.status,card.how].join(' ').toLowerCase().includes(search.toLowerCase()));
 }
 function drawBoards() {
   const visible = galleryCards();
-  const count = visible.length;
-  $('#visible-count').textContent = `${count} of ${cards.length} ${cards.length === 1 ? 'state' : 'states'}`;
-  $('#boards').innerHTML = app.NAV.map(board => {
-    const entries = visible.filter(card => card.boardId === board.id);
+  const filtered = Boolean(search) || kind !== 'all';
+  $('#visible-count').textContent = !cards.length ? 'Not captured yet'
+    : visible.length === cards.length ? plural(cards.length, 'screen') : `${visible.length} of ${plural(cards.length, 'screen')}`;
+  // A journey without screens stays visible as one quiet line, unless a search or screen type is filtering.
+  $('#boards').innerHTML = journeyGroups().map(group => {
+    if (boardFilter !== 'all' && boardFilter !== group.id) return '';
+    if (!group.cards.length) return filtered ? '' : `<section class="board board-empty" id="board-${esc(group.id)}"><header class="board-heading"><h2>${esc(group.title)}</h2><span class="board-count">Not captured yet</span></header></section>`;
+    const entries = visible.filter(card => card.boardId === group.board.id);
     if (!entries.length) return '';
-    return `<section class="board" id="board-${esc(board.id)}"><header class="board-heading"><div><h2>${esc(board.title)}</h2><p>${esc(board.description)}</p></div><span class="board-count">${entries.length} ${entries.length === 1 ? 'state' : 'states'}</span></header><div class="board-grid">${entries.map(card => cardHTML(card)).join('')}</div></section>`;
-  }).join('') || `<div class="no-results">No states match. Try another search, board, or state type.</div>`;
+    return `<section class="board" id="board-${esc(group.id)}"><header class="board-heading"><div><h2>${esc(group.title)}</h2>${group.summary ? `<p>${esc(group.summary)}</p>` : ''}</div><span class="board-count">${plural(entries.length, 'screen')}</span></header><div class="board-grid">${entries.map(card => cardHTML(card)).join('')}</div></section>`;
+  }).join('') || `<div class="no-results">${cards.length ? 'No screens match. Try another search, journey, or screen type.' : 'Nothing has been captured yet.'}</div>`;
   resizeGallery();
 }
 function resizeGallery() {
@@ -560,7 +643,157 @@ function mapGraph() {
   const rows = Math.max(...ids.map(id => row.get(id))) + 1;
   return { ids, edges: all, back, layer, row, columns, rows };
 }
+// Optional staged journeys: app.FLOW_STAGES = { [journeyId]: [{ label, cards: [cardId, ...] }, ...] }. Such a journey
+// gets one pill and is drawn on its own as a left-to-right tree: its paths merged, one column per stage in order.
+// Within a column a screen sits directly below the screen in the same stage that leads to it. A screen in no
+// stage takes the stage of the screen that leads to it. Journeys without stages stay on the shared map.
+let mapJourney = null;
+const stagesOf = journey => (journey && Array.isArray(app.FLOW_STAGES?.[journey]) && app.FLOW_STAGES[journey].length) ? app.FLOW_STAGES[journey] : null;
+const allStaged = () => app.FLOWS.length > 0 && app.FLOWS.every(flow => stagesOf(flow.journey));
+const journeyFlowIndexes = journey => app.FLOWS.map((flow, index) => flow.journey === journey ? index : -1).filter(index => index >= 0);
+function stagedGraph(journey) {
+  const stages = stagesOf(journey), indexes = journeyFlowIndexes(journey);
+  const ids = [], edges = new Map();
+  for (const flowIndex of indexes) app.FLOWS[flowIndex].steps.forEach((step, index) => {
+    if (!ids.includes(step.card)) ids.push(step.card);
+    const next = app.FLOWS[flowIndex].steps[index + 1];
+    if (!next) return;
+    const key = `${step.card}>${next.card}`;
+    if (!edges.has(key)) edges.set(key, { from: step.card, to: next.card, label: step.label || '', flows: new Set() });
+    edges.get(key).flows.add(flowIndex);
+  });
+  const all = [...edges.values()];
+  const stage = new Map(), listed = [];
+  stages.forEach((item, index) => (item.cards || []).forEach(id => { if (ids.includes(id) && !stage.has(id)) { stage.set(id, index); listed.push(id); } }));
+  // Unlisted screens inherit the stage of the screen that leads to them (repeated, so chains of them follow).
+  for (let pass = 0; pass < ids.length; pass++) for (const edge of all) if (!stage.has(edge.to) && stage.has(edge.from)) stage.set(edge.to, stage.get(edge.from));
+  for (const id of ids) if (!stage.has(id)) stage.set(id, 0);
+  const order = id => { const at = listed.indexOf(id); return at < 0 ? listed.length + ids.indexOf(id) : at; };
+  const inColumn = edge => edge.from !== edge.to && stage.get(edge.from) === stage.get(edge.to);
+  // Rows: in each column, screens with no parent in that column start a chain, placed level with their first
+  // parent in an earlier column where possible; their same-column children follow directly beneath them.
+  const row = new Map(), columns = stages.map(() => []);
+  stages.forEach((_, column) => {
+    const members = ids.filter(id => stage.get(id) === column).sort((a, b) => order(a) - order(b));
+    const childrenOf = id => all.filter(edge => edge.from === id && inColumn(edge)).map(edge => edge.to).filter(to => members.includes(to)).sort((a, b) => order(a) - order(b));
+    const hasParent = new Set(all.filter(inColumn).map(edge => edge.to));
+    const want = id => { const rows = all.filter(edge => edge.to === id && stage.get(edge.from) < column && row.has(edge.from)).map(edge => row.get(edge.from)); return rows.length ? Math.min(...rows) : 0; };
+    const roots = members.filter(id => !hasParent.has(id));
+    const placed = new Set();
+    // Screens only reachable through a loop inside the column still need a place.
+    for (const id of members) if (!roots.includes(id) && !members.some(other => childrenOf(other).includes(id) && other !== id)) roots.push(id);
+    roots.sort((a, b) => (want(a) - want(b)) || (order(a) - order(b)));
+    let next = 0;
+    const place = (id, at) => {
+      if (placed.has(id)) return;
+      placed.add(id); row.set(id, at); columns[column].push(id); next = at + 1;
+      for (const child of childrenOf(id)) place(child, next);
+    };
+    for (const id of roots) place(id, Math.max(want(id), next));
+    for (const id of members) place(id, next);
+  });
+  // Then, right to left, screens nothing leads to (the entry points) move down level with what they open.
+  for (let column = stages.length - 2; column >= 0; column--) {
+    const before = columns[column].slice(), source = id => !all.some(edge => edge.to === id && edge.from !== id);
+    const later = id => all.filter(edge => edge.from === id && stage.get(edge.to) > column).map(edge => row.get(edge.to));
+    const childrenOf = id => all.filter(edge => edge.from === id && inColumn(edge) && stage.get(edge.to) === column).map(edge => edge.to);
+    const placed = new Set();
+    let next = 0;
+    const place = (id, at) => { if (placed.has(id)) return; placed.add(id); row.set(id, at); next = at + 1; for (const child of childrenOf(id)) if (before.includes(child)) place(child, next); };
+    for (const id of before) if (!placed.has(id)) {
+      const targets = later(id), want = source(id) && targets.length ? Math.min(...targets) : row.get(id);
+      place(id, Math.max(next, want));
+    }
+  }
+  const rows = Math.max(0, ...ids.map(id => row.get(id))) + 1;
+  return { ids: columns.flat(), edges: all, stage, row, rows, stages, indexes };
+}
+function renderStagedMap(journey, group) {
+  const graph = stagedGraph(journey), flow = mapFlow >= 0 && graph.indexes.includes(mapFlow) ? app.FLOWS[mapFlow] : null;
+  const W = 176, H = 58, X = W + 140, Y = 92, pad = 24, head = 40;
+  const at = id => ({ x: pad + graph.stage.get(id) * X, y: pad + head + graph.row.get(id) * Y });
+  // Labels beside same-column edges in the last column can reach past it; widen the map to keep them in view
+  // (about 6.5px per character at the label size, plus padding).
+  const last = graph.stages.length - 1, lastEdges = graph.edges.filter(edge => edge.from !== edge.to && graph.stage.get(edge.from) === last && graph.stage.get(edge.to) === last);
+  const reach = edge => graph.row.get(edge.to) === graph.row.get(edge.from) + 1 ? W / 2 + 10 + (edge.label || 'Continue').length * 6.5 + 16 - W : 36 + 124;
+  const width = pad * 2 + last * X + W + Math.max(0, ...lastEdges.map(reach)), height = pad * 2 + head + (graph.rows - 1) * Y + H + 40;
+  const on = edge => !flow || edge.flows.has(mapFlow);
+  const vertical = edge => graph.stage.get(edge.from) === graph.stage.get(edge.to) && edge.from !== edge.to;
+  const path = edge => {
+    const a = at(edge.from), b = at(edge.to);
+    if (vertical(edge)) {
+      if (graph.row.get(edge.to) === graph.row.get(edge.from) + 1) return `M${a.x + W / 2} ${a.y + H}L${b.x + W / 2} ${b.y - 6}`;
+      const side = a.x + W + 28; return `M${a.x + W} ${a.y + H / 2}C${side} ${a.y + H / 2} ${side} ${b.y + H / 2} ${b.x + W + 6} ${b.y + H / 2}`;
+    }
+    if (b.x > a.x) { const x1 = a.x + W, y1 = a.y + H / 2, x2 = b.x - 6, y2 = b.y + H / 2, dx = (x2 - x1) / 2; return `M${x1} ${y1}C${x1 + dx} ${y1} ${x2 - dx} ${y2} ${x2} ${y2}`; }
+    const x1 = a.x + W / 2, y1 = a.y + H, x2 = b.x + W / 2, y2 = b.y + H + 6, low = Math.max(y1, y2) + 34;
+    return `M${x1} ${y1}C${x1} ${low} ${x2} ${low} ${x2} ${y2}`;
+  };
+  const label = edge => {
+    const a = at(edge.from), b = at(edge.to), text = esc(edge.label || 'Continue');
+    if (vertical(edge) && graph.row.get(edge.to) === graph.row.get(edge.from) + 1) return `<span class="graph-label graph-label-side" style="left:${a.x + W / 2 + 10}px;top:${(a.y + H + b.y) / 2}px">${text}</span>`;
+    // A longer same-column hop curves out to the right of the column; its label sits beside that curve.
+    if (vertical(edge)) return `<span class="graph-label graph-label-side graph-label-hop" style="left:${a.x + W + 36}px;top:${(a.y + b.y + H) / 2}px">${text}</span>`;
+    const p = b.x > a.x ? { x: (a.x + W + b.x) / 2, y: (a.y + b.y + H) / 2 } : { x: (a.x + b.x + W) / 2, y: Math.max(a.y, b.y) + H + 26 };
+    return `<span class="graph-label" style="left:${p.x}px;top:${p.y}px">${text}</span>`;
+  };
+  const edgesSVG = graph.edges.map(edge => `<path class="graph-edge${flow && on(edge) ? ' on' : ''}" d="${path(edge)}" marker-end="url(#${flow && on(edge) ? 'graph-arrow-on' : 'graph-arrow'})"/>`).join('');
+  const labels = graph.edges.filter(on).map(label).join('');
+  const node = id => {
+    const card = cards.find(item => item.id === id), p = at(id);
+    if (!card) return '';
+    const step = flow ? flow.steps.findIndex(item => item.card === id) : -1;
+    // Opening a screen walks the highlighted path, or else the first path of this journey that includes it.
+    const home = step >= 0 ? { flowIndex: mapFlow, step } : graph.indexes.map(flowIndex => ({ flowIndex, step: app.FLOWS[flowIndex].steps.findIndex(item => item.card === id) })).find(item => item.step >= 0);
+    const sequence = home ? ` data-flow-index="${home.flowIndex}" data-step-index="${home.step}"` : '';
+    return `<button class="graph-node${step >= 0 ? ' on' : ''}" style="left:${p.x}px;top:${p.y}px;width:${W}px;height:${H}px" data-open-card="${esc(card.id)}"${sequence}>${step >= 0 ? `<i>${step + 1}</i>` : ''}<b>${esc(card.title)}</b><small>/${esc(card.route)}</small></button>`;
+  };
+  // One group per stage, so keyboard and screen-reader order runs stage by stage, left to right.
+  const columns = graph.stages.map((item, index) => `<div role="group" aria-label="${esc(item.label)}"><span class="graph-stage" style="left:${pad + index * X}px;top:${pad}px;width:${W}px">${esc(item.label)}</span>${graph.ids.filter(id => graph.stage.get(id) === index).map(node).join('')}</div>`).join('');
+  const description = flow?.description || (!flow && group?.summary) || '';
+  return `<div class="section-toolbar"><h1 class="section-title">Flow map <span>${plural(graph.ids.length, 'screen')} · ${plural(graph.indexes.length, 'path')}</span></h1></div>
+    ${mapPills()}
+    ${description ? `<p class="flow-description">${esc(description)}</p>` : ''}
+    <div class="graph-scroll"><div class="graph staged${flow ? ' focused' : ''}" style="width:${width}px;height:${height}px">
+      <svg class="graph-edges" width="${width}" height="${height}" aria-hidden="true"><defs><marker id="graph-arrow" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 8 4 0 8z"/></marker><marker id="graph-arrow-on" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 8 4 0 8z"/></marker></defs>${edgesSVG}</svg>
+      ${labels}${columns}
+    </div></div>`;
+}
+// Pills follow the journey order. A journey without a drawable path stays as a quiet, disabled pill.
+// A staged journey has one pill; while it is open, a second row of pills highlights one of its paths.
+function mapPills() {
+  const claimed = new Set(), parts = [];
+  const pill = (title, index) => `<button type="button" class="graph-pill" data-map-flow="${index}" aria-pressed="${mapFlow === index && !mapJourney}">${esc(title)}${index >= 0 ? `<span>${app.FLOWS[index].steps.length}</span>` : ''}</button>`;
+  let branches = '';
+  for (const group of journeyGroups().filter(item => item.journey)) {
+    const indexes = app.FLOWS.map((flow, index) => ({ flow, index }))
+      .filter(({ flow, index }) => !claimed.has(index) && (flow.journey === group.journey || flow.title === group.title)).map(({ index }) => index);
+    indexes.forEach(index => claimed.add(index));
+    if (indexes.length && stagesOf(group.journey) && indexes.every(index => app.FLOWS[index].journey === group.journey)) {
+      const screens = new Set(indexes.flatMap(index => app.FLOWS[index].steps.map(step => step.card))).size;
+      const open = mapJourney === group.journey;
+      // Branch titles usually repeat the journey name ("Checkout: guest path"); a prefix they all share is dropped.
+      const prefix = /^[^:]+:\s+/.exec(app.FLOWS[indexes[0]].title)?.[0];
+      const short = title => prefix && indexes.every(index => app.FLOWS[index].title.startsWith(prefix)) ? title.slice(prefix.length).replace(/^./, c => c.toUpperCase()) : title;
+      parts.push(`<button type="button" class="graph-pill" data-map-journey="${esc(group.journey)}" aria-pressed="${open}">${esc(group.title)}<span>${screens}</span></button>`);
+      if (open) branches = `<div class="graph-pills graph-branches" role="group" aria-label="Highlight a path in ${esc(group.title)}"><button type="button" class="graph-pill" data-map-journey="${esc(group.journey)}" aria-pressed="${mapFlow < 0}">Every path</button>${indexes.map(index => `<button type="button" class="graph-pill" data-map-flow="${index}" data-map-journey="${esc(group.journey)}" aria-pressed="${mapFlow === index}">${esc(short(app.FLOWS[index].title))}<span>${app.FLOWS[index].steps.length}</span></button>`).join('')}</div>`;
+    }
+    else if (indexes.length) parts.push(...indexes.map(index => pill(indexes.length === 1 ? group.title : app.FLOWS[index].title, index)));
+    else {
+      const count = group.cards.length;
+      parts.push(`<button type="button" class="graph-pill graph-pill-empty" disabled title="${count ? 'One screen so far, so there is no path to draw yet' : 'Not captured yet'}">${esc(group.title)}<span>${count ? plural(count, 'screen') : 'Not captured yet'}</span></button>`);
+    }
+  }
+  app.FLOWS.forEach((flow, index) => { if (!claimed.has(index)) parts.push(pill(flow.title, index)); });
+  return parts.length ? `<div class="graph-pills" role="group" aria-label="Highlight a journey">${app.FLOWS.length && !allStaged() ? pill('All journeys', -1) : ''}${parts.join('')}</div>${branches}` : '';
+}
 function renderMap() {
+  if (!app.FLOWS.length || !cards.length) return `<div class="section-toolbar"><h1 class="section-title">Flow map</h1></div>
+    <p class="map-empty">The Flow map appears once screens are captured. Each journey is then drawn as a path from screen to screen.</p>${mapPills()}`;
+  if (mapJourney && !stagesOf(mapJourney)) mapJourney = null;
+  // When every path belongs to a staged journey, the shared map adds nothing: open the first journey's tree instead.
+  if (!mapJourney && allStaged()) mapJourney = mapFlow >= 0 ? app.FLOWS[mapFlow].journey : (journeyGroups().find(group => stagesOf(group.journey))?.journey || app.FLOWS[0].journey);
+  if (mapJourney) return renderStagedMap(mapJourney, journeyGroups().find(group => group.journey === mapJourney));
   const graph = mapGraph(), flow = app.FLOWS[mapFlow];
   const W = 176, H = 58, X = 248, Y = 92, pad = 24;
   const at = id => ({ x: pad + graph.layer.get(id) * X, y: pad + graph.row.get(id) * Y });
@@ -581,17 +814,24 @@ function renderMap() {
     const sequence = step >= 0 ? ` data-flow-index="${mapFlow}" data-step-index="${step}"` : '';
     return `<button class="graph-node${step >= 0 ? ' on' : ''}" style="left:${p.x}px;top:${p.y}px;width:${W}px;height:${H}px" data-open-card="${esc(card.id)}"${sequence}>${step >= 0 ? `<i>${step + 1}</i>` : ''}<b>${esc(card.title)}</b><small>/${esc(card.route)}</small></button>`;
   }).join('');
-  const pills = [['All flows', -1], ...app.FLOWS.map((item, index) => [item.title, index])].map(([title, index]) => `<button class="graph-pill" data-map-flow="${index}" aria-pressed="${mapFlow === index}">${esc(title)}${index >= 0 ? `<span>${app.FLOWS[index].steps.length}</span>` : ''}</button>`).join('');
-  return `<div class="section-toolbar"><h1 class="section-title">Flow map <span>${graph.ids.length} screens · ${app.FLOWS.length} flows</span></h1></div>
-    <div class="graph-pills" role="group" aria-label="Highlight a flow">${pills}</div>
+  return `<div class="section-toolbar"><h1 class="section-title">Flow map <span>${plural(graph.ids.length, 'screen')} · ${plural(app.FLOWS.length, 'journey')}</span></h1></div>
+    ${mapPills()}
     ${flow?.description ? `<p class="flow-description">${esc(flow.description)}</p>` : ''}
     <div class="graph-scroll"><div class="graph${flow ? ' focused' : ''}" style="width:${width}px;height:${height}px">
       <svg class="graph-edges" width="${width}" height="${height}" aria-hidden="true"><defs><marker id="graph-arrow" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 8 4 0 8z"/></marker><marker id="graph-arrow-on" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 8 4 0 8z"/></marker></defs>${edgesSVG}</svg>
       ${labels}${nodes}
     </div></div>`;
 }
+// Jump links to each journey on the Screens view (they replace the old sidebar list).
+function journeyJump() {
+  const groups = journeyGroups();
+  if (groups.length < 2) return '';
+  return `<nav class="journey-jump" aria-label="Journeys">${groups.map(group => {
+    const count = group.cards.length, label = `${esc(group.title)} · ${count ? plural(count, 'screen') : 'Not captured yet'}`;
+    return `<a href="#board-${esc(group.id)}" data-board="${esc(group.id)}"${count ? '' : ' class="journey-jump-empty"'} aria-label="${label}">${esc(group.title)}${count ? `<span aria-hidden="true">${count}</span>` : ''}</a>`;
+  }).join('')}</nav>`;
+}
 function renderView() {
-  $('#board-subnav').hidden = currentView !== 'screens';
   for (const button of document.querySelectorAll('.view-nav [data-view]')) {
     button.hidden = !workspaceViews().some(([id])=>id === button.dataset.view);
     const active = button.dataset.view === currentView;
@@ -603,9 +843,13 @@ function renderView() {
   if (currentView === 'overview') html = renderOverview();
   else if (currentView === 'findings') html = renderFindings();
   else if (currentView === 'screens') {
-    html = `<div class="section-toolbar"><h1 class="section-title">Screens <span id="visible-count" aria-live="polite"></span></h1><div class="filters"><div class="search-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input id="search" type="search" aria-label="Search screens" placeholder="Search screens" value="${esc(search)}"></div><select id="board-filter" aria-label="Filter by board"><option value="all">All boards</option>${app.NAV.map(board => `<option value="${esc(board.id)}" ${boardFilter === board.id ? 'selected' : ''}>${esc(board.title)}</option>`).join('')}</select><select id="kind-filter" aria-label="Filter by state type"><option value="all">All states</option>${[...new Set(cards.map(card => card.kind))].map(value => `<option value="${esc(value)}" ${kind === value ? 'selected' : ''}>${esc(value[0].toUpperCase()+value.slice(1))}</option>`).join('')}</select></div></div><div id="boards"></div>`;
+    const kinds = [...new Set(cards.map(shownKind).filter(Boolean))];
+    if (kinds.length < 2) kind = 'all';
+    const filters = cards.length ? `<div class="filters"><div class="search-wrap"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input id="search" type="search" aria-label="Search screens" placeholder="Search screens" value="${esc(search)}"></div><select id="board-filter" aria-label="Filter by journey"><option value="all">All journeys</option>${journeyGroups().map(group => `<option value="${esc(group.id)}" ${boardFilter === group.id ? 'selected' : ''}>${esc(group.title)}</option>`).join('')}</select>${kinds.length > 1 ? `<select id="kind-filter" aria-label="Filter by screen type"><option value="all">All screen types</option>${kinds.map(value => `<option value="${esc(value)}" ${kind === value ? 'selected' : ''}>${esc(kindLabel(value))}</option>`).join('')}</select>` : ''}</div>` : '';
+    html = `<div class="section-toolbar"><h1 class="section-title">Screens <span id="visible-count" aria-live="polite"></span></h1>${filters}</div>${journeyJump()}<div id="boards"></div>`;
   } else if (currentView === 'map') html = renderMap();
   else html = renderLibrary();
+  content.dataset.currentView = currentView; // not data-view: that marks view-switching controls
   content.innerHTML = mobileTabs() + html;
   if (currentView === 'screens') drawBoards();
 }
@@ -648,7 +892,7 @@ function renderStepControls(cardId) {
   if (!reviewSequence) return;
   const { cardIds, index, label, source } = reviewSequence;
   const outside = cardIds[index] !== cardId;
-  $('#focus-position').textContent = `${label} · ${source === 'flow' ? 'Step' : 'Screen'} ${index + 1} of ${cardIds.length}${outside ? ' · Outside this ' + (source === 'flow' ? 'flow' : 'selection') : ''}`;
+  $('#focus-position').textContent = `${label} · ${source === 'flow' ? 'Step' : 'Screen'} ${index + 1} of ${cardIds.length}${outside ? ' · Outside this ' + (source === 'flow' ? 'journey' : 'selection') : ''}`;
   const mobile = $('#mobile-step-position');
   if (mobile) {
     mobile.textContent = `${index + 1} / ${cardIds.length}${outside ? ' · Outside' : ''}`;
@@ -662,6 +906,22 @@ function renderStepControls(cardId) {
     const button = document.getElementById(id);
     if (button) button.disabled = index >= cardIds.length - 1;
   }
+}
+// Focus moved by the studio (opening a dialog, re-rendering the prototype) always moves, for keyboard and
+// screen-reader users, but only shows its ring when the action came from the keyboard. After a pointer action the
+// target is marked quiet-focus until it loses focus or the user presses a key. Text fields keep their usual focus.
+let pointerModality = false;
+addEventListener('pointerdown', () => { pointerModality = true; }, true);
+addEventListener('keydown', event => { if (!['Shift', 'Control', 'Alt', 'Meta'].includes(event.key)) pointerModality = false; }, true);
+function moveFocus(element, options = {}) {
+  if (!element) return;
+  const quiet = pointerModality && !element.matches('input:not([type=button],[type=submit],[type=reset],[type=checkbox],[type=radio]),textarea,select,[contenteditable]');
+  if (quiet && !element.classList.contains('quiet-focus')) {
+    element.classList.add('quiet-focus');
+    const clear = () => { element.classList.remove('quiet-focus'); element.removeEventListener('blur', clear); removeEventListener('keydown', clear, true); };
+    element.addEventListener('blur', clear); addEventListener('keydown', clear, true);
+  }
+  element.focus({ ...options, ...(quiet ? { focusVisible: false } : {}) });
 }
 function openCardFromElement(element) {
   const id = element.dataset.openCard;
@@ -687,7 +947,7 @@ function openCard(id, { hold = false, snapshot, sequence } = {}) {
   if (!dialog.open) dialog.showModal();
   document.body.style.overflow = 'hidden';
   renderLive(); updateURL(); resizePhone();
-  if (!state.overlay) $(dialog.dataset.immersive === 'true' ? '#exit-immersive' : '#close-focus')?.focus();
+  if (!state.overlay) moveFocus($(dialog.dataset.immersive === 'true' ? '#exit-immersive' : '#close-focus'));
   if (state.toast) ctx.toast(state.toast);
   enter();
 }
@@ -823,8 +1083,8 @@ function renderLive() {
     ? (heldCards.has(baseCard.id)
       ? 'Held for inspection. Auto-advance is paused. Close and reopen the prototype to replay the transition.'
       : 'Advances once on this first view. Reset or Back returns to loading and holds it for inspection.')
-    : 'Local simulation. Reset restores the latest loading step, or the card you opened, and cancels pending transitions.';
-  $('#context').innerHTML = `<div class="context-top"><span class="status status-${esc(card.status.toLowerCase())}">${esc(card.status)}</span>${card.kind !== 'ready' ? `<span class="status">${esc(card.kind)}</span>` : ''}</div><h2>${esc(card.title)}</h2><div class="context-route">/${esc(state.route)}${state.overlay ? ` · ${esc(state.overlay)}` : ''}</div>${renderContextSummary(card)}<section class="context-box"><h3>How you get here</h3><p>${esc(card.how)}</p></section><section class="context-box"><h3>Available interactions</h3><ul>${actions.map(action=>`<li class="interaction-item"><strong>${esc(action.label)}</strong><span>${esc(action.description)}</span></li>`).join('') || '<li>No actions are documented for this state.</li>'}</ul></section><div class="simulation-note">${simulationNote}</div>`;
+    : 'Local simulation. Reset restores the latest loading step, or the screen you opened, and cancels pending transitions.';
+  $('#context').innerHTML = `<div class="context-top"><span class="status status-${esc(card.status.toLowerCase())}">${esc(card.status)}</span>${shownKind(card) ? `<span class="status">${esc(kindLabel(shownKind(card)))}</span>` : ''}</div><h2>${esc(card.title)}</h2><div class="context-route">/${esc(state.route)}${state.overlay ? ` · ${esc(state.overlay)}` : ''}</div>${renderContextSummary(card)}<section class="context-box"><h3>How you get here</h3><p>${esc(card.how)}</p></section><section class="context-box"><h3>Available interactions</h3><ul>${actions.map(action=>`<li class="interaction-item"><strong>${esc(action.label)}</strong><span>${esc(action.description)}</span></li>`).join('') || '<li>No interactions are documented for this screen.</li>'}</ul></section><div class="simulation-note">${simulationNote}</div>`;
   const scrollers = [...phone.querySelectorAll('.app-scroll')];
   for (const element of scrollers) {
     const position = scrollPositions.get(scrollKey(element,state.route,state.overlay || '',scrollers));
@@ -843,27 +1103,27 @@ function renderLive() {
   }
   const focusModal = () => {
     const target = modal && [...modal.querySelectorAll('button,input,select,textarea,a[href],[tabindex]')].find(element => element.tabIndex >= 0 && !element.disabled && !element.closest('[inert],[hidden]') && element.getClientRects().length);
-    if (target) target.focus({preventScroll:true});
-    else if (modal) { modal.tabIndex = -1; modal.focus({preventScroll:true}); }
+    if (target) moveFocus(target, {preventScroll:true});
+    else if (modal) { modal.tabIndex = -1; moveFocus(modal, {preventScroll:true}); }
   };
   const focusFallback = () => {
     if (state.overlay && modal) focusModal();
-    else ($('#prototype-back').disabled ? $('#reset') : $('#prototype-back')).focus({preventScroll:true});
+    else moveFocus(($('#prototype-back').disabled ? $('#reset') : $('#prototype-back')), {preventScroll:true});
   };
   if (openedMenu) {
     const items = menuItems(openedMenu);
-    (items.find(element=>element.getAttribute('aria-checked') === 'true') || items[0])?.focus({preventScroll:true});
+    moveFocus(items.find(element=>element.getAttribute('aria-checked') === 'true') || items[0], {preventScroll:true});
   }
-  else if (closedMenuTrigger) closedMenuTrigger.focus({preventScroll:true});
+  else if (closedMenuTrigger) moveFocus(closedMenuTrigger, {preventScroll:true});
   else if (state.overlay && (!sameRoute || previousOverlay !== state.overlay)) focusModal();
   else if (state.overlay && changedOverlayView) {
     const replacement = findAction(viewOpener);
-    if (replacement) replacement.focus({preventScroll:true});
+    if (replacement) moveFocus(replacement, {preventScroll:true});
     else focusModal();
   }
   else if (sameRoute && previousOverlay && !state.overlay) {
     const replacement = findAction(overlayOpener);
-    if (replacement) replacement.focus({preventScroll:true});
+    if (replacement) moveFocus(replacement, {preventScroll:true});
     else focusFallback();
     overlayOpener = null;
   }
@@ -872,7 +1132,7 @@ function renderLive() {
       ? [...phone.querySelectorAll('[data-field]')].find(el=>el.dataset.field===activeField && available(el))
       : [...phone.querySelectorAll('input,textarea,select')].find(el=>controlKey(el,state.overlay || '')===activeControl && available(el));
     if (replacement) {
-      replacement.focus({preventScroll:true});
+      moveFocus(replacement, {preventScroll:true});
       if (priorSelection) {
         try { replacement.setSelectionRange?.(priorSelection.start,priorSelection.end,priorSelection.direction); } catch {}
       }
@@ -880,11 +1140,11 @@ function renderLive() {
   } else if (sameRoute && activeSubmit) {
     const form = [...phone.querySelectorAll('form[data-submit]')].find(element => element.dataset.submit === activeSubmit && !element.closest('[inert],[hidden]'));
     const replacement = form && [...form.elements].find(element => element.type === 'submit' && !element.disabled && element.getClientRects().length);
-    if (replacement) replacement.focus({preventScroll:true});
+    if (replacement) moveFocus(replacement, {preventScroll:true});
     else focusFallback();
   } else if (activeAction || activeField || activeControl || activeSubmit) {
     const replacement = sameRoute && findAction(activeAction);
-    if (replacement) replacement.focus({preventScroll:true});
+    if (replacement) moveFocus(replacement, {preventScroll:true});
     else focusFallback();
   }
   $('#studio-announcement').textContent = card.title;
@@ -928,7 +1188,10 @@ function renderPresenter() {
   $('#present-position').textContent = `Finding ${presentIndex + 1} of ${items.length}`;
   $('#present-previous').disabled = presentIndex === 0;
   $('#present-next').disabled = presentIndex === items.length - 1;
-  $('#present-body').innerHTML = `<div class="present-text">${severityTag(item.severity)}<h2 id="present-title">${esc(item.title)}</h2>${item.problem ? `<p class="finding-problem">${esc(item.problem)}</p>` : ''}${item.recommendation ? `<p class="finding-recommendation"><strong>Recommendation</strong> ${esc(item.recommendation)}</p>` : ''}</div><div class="present-frames">${presentFrame(evidence, item.evidence?.[0])}${presentFrame(proposal, item.proposal?.[0])}</div>`;
+  const opportunity = findingOpportunity(item), journey = findingJourney(item);
+  const grouping = findingRegistry('opportunities').length > 0;
+  const context = grouping || journey ? `<dl class="present-context">${opportunity ? `<div><dt>Opportunity ${findingRegistry('opportunities').indexOf(opportunity) + 1}</dt><dd>${esc(opportunity.title)}${impactLabel(opportunity.impact) ? ` <span class="impact impact-${esc(opportunity.impact)}">${esc(impactLabel(opportunity.impact))}</span>` : ''}</dd></div>` : grouping ? '<div><dt>Opportunity</dt><dd>Not yet grouped</dd></div>' : ''}${journey ? `<div><dt>Journey</dt><dd>${esc(journey.title)}</dd></div>` : ''}</dl>` : '';
+  $('#present-body').innerHTML = `<div class="present-text">${context}${severityTag(item.severity)}<h2 id="present-title">${esc(item.title)}</h2>${item.problem ? `<p class="finding-problem">${esc(item.problem)}</p>` : ''}${item.recommendation ? `<p class="finding-recommendation"><strong>Recommendation</strong> ${esc(item.recommendation)}</p>` : ''}</div><div class="present-frames">${presentFrame(evidence, item.evidence?.[0])}${presentFrame(proposal, item.proposal?.[0])}</div>`;
   $('#present-announcement').textContent = `Finding ${presentIndex + 1}: ${item.title}`;
 }
 function openPresenter(index) {
@@ -942,7 +1205,7 @@ function openPresenter(index) {
     document.body.style.overflow = 'hidden';
   }
   renderPresenter();
-  $('#present-close').focus({ preventScroll: true });
+  moveFocus($('#present-close'), { preventScroll: true });
 }
 function movePresenter(direction) {
   const index = presentIndex + direction;
@@ -952,7 +1215,7 @@ function movePresenter(direction) {
 presenter.addEventListener('close', () => {
   setStateStylesheets(false);
   document.body.style.overflow = '';
-  if (presentOpener?.isConnected) presentOpener.focus({ preventScroll: true });
+  if (presentOpener?.isConnected) moveFocus(presentOpener, { preventScroll: true });
   presentOpener = null;
 });
 presenter.addEventListener('keydown', event => {
@@ -985,15 +1248,15 @@ function syncReviewPanels() {
 function setDetails(open, restoreFocus = true) {
   dialog.dataset.details = String(open && mobileReview.matches);
   syncReviewPanels();
-  if (open && mobileReview.matches) $('#close-details').focus({preventScroll: true});
-  else if (restoreFocus && mobileReview.matches && dialog.open) $('#toggle-details').focus({preventScroll: true});
+  if (open && mobileReview.matches) moveFocus($('#close-details'), {preventScroll: true});
+  else if (restoreFocus && mobileReview.matches && dialog.open) moveFocus($('#toggle-details'), {preventScroll: true});
 }
 function setImmersive(open, restoreFocus = true) {
   setDetails(false, false);
   dialog.dataset.immersive = String(open);
   syncReviewPanels();
   resizePhone();
-  if (restoreFocus && dialog.open) (open ? $('#exit-immersive') : $('#toggle-immersive')).focus({preventScroll: true});
+  if (restoreFocus && dialog.open) moveFocus((open ? $('#exit-immersive') : $('#toggle-immersive')), {preventScroll: true});
 }
 function resizePhone() {
   resizeGallery();
@@ -1167,78 +1430,36 @@ function installSwipeNavigation() {
   window.addEventListener('blur', cancelSwipe);
   dialog.addEventListener('close', cancelSwipe);
 }
-function setupSidebar() {
+// The sidebar became a top bar. studio.sidebar is still accepted: scope labels the bar, collapsible has nothing to collapse.
+function setupTopbar() {
   const options = studioOptions.sidebar || {};
   const scope = typeof options.scope === 'string' ? options.scope.trim() : '';
-  if (!scope && !options.collapsible) return;
-  const sidebar = $('.sidebar');
-  sidebar.id = 'workspace-sidebar';
-  if (scope) sidebar.setAttribute('aria-label', `${scope} workspace navigation`);
-  const header = document.createElement('div');
-  header.className = 'sidebar-header';
-  const identity = document.createElement('div');
-  identity.className = 'sidebar-identity';
-  identity.append($('#studio-brand'));
-  if (scope) {
-    const label = document.createElement('p');
-    label.className = 'sidebar-scope'; label.textContent = scope;
-    identity.append(label);
-  }
-  header.append(identity); sidebar.prepend(header);
-  if (!options.collapsible) return;
-  const workspace = $('#workspace');
-  workspace.dataset.sidebarCollapsible = 'true';
-  const storageKey = `app-flow-studio:sidebar:${studioName}`;
-  let collapsed = false;
-  try { collapsed = localStorage.getItem(storageKey) === 'collapsed'; } catch {}
-  const toggle = document.createElement('button');
-  toggle.type = 'button'; toggle.id = 'sidebar-toggle'; toggle.className = 'sidebar-toggle icon-button';
-  toggle.setAttribute('aria-controls',sidebar.id);
-  const apply = () => {
-    workspace.dataset.sidebarCollapsed = String(collapsed);
-    toggle.setAttribute('aria-expanded',String(!collapsed));
-    toggle.setAttribute('aria-label',collapsed ? 'Expand sidebar' : 'Collapse sidebar');
-    toggle.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
-    toggle.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16${collapsed ? 'm5-11 3 3-3 3' : 'm8-11-3 3 3 3'}"/></svg>`;
-  };
-  toggle.addEventListener('click',() => {
-    collapsed = !collapsed; apply();
-    try { localStorage.setItem(storageKey,collapsed ? 'collapsed' : 'expanded'); } catch {}
-  });
-  header.append(toggle);
-  for (const button of sidebar.querySelectorAll('.view-nav button')) {
-    const label = button.textContent.trim();
-    button.setAttribute('aria-label',label); button.title = label;
-    button.innerHTML = `${button.querySelector('svg')?.outerHTML || ''}<span class="sidebar-nav-label">${esc(label)}</span>`;
-  }
-  apply();
+  if (!scope) return;
+  $('#topbar-scope').textContent = scope;
+  $('#topbar-scope').hidden = false;
+  $('.view-nav').setAttribute('aria-label', `${scope} views`);
 }
 const brand = $('#studio-brand');
 brand.textContent = '';
 const brandLabel = document.createElement('span');
-brandLabel.className = 'studio-brand-label'; brandLabel.textContent = studioName;
+brandLabel.className = 'studio-brand-label';
 brand.append(brandLabel);
 if (typeof studioOptions.icon === 'string' && /^(?:\.\/)?apps\/[A-Za-z0-9._/-]+$/.test(studioOptions.icon) && !studioOptions.icon.split('/').includes('..')) {
   const mark = document.createElement('span'); mark.className = 'studio-brand-icon'; mark.setAttribute('aria-hidden','true');
-  const image = document.createElement('img'); image.src = studioOptions.icon; image.alt = ''; image.width = 28; image.height = 28;
+  const image = document.createElement('img'); image.src = studioOptions.icon; image.alt = ''; image.width = 20; image.height = 20;
   mark.append(image); brand.prepend(mark);
-  $('#workspace').dataset.brandIcon = 'true';
 }
 $('#studio-brand').dataset.view = defaultView;
 const headerTitle = typeof studioOptions.headerTitle === 'string' && studioOptions.headerTitle.trim() ? studioOptions.headerTitle.trim() : null;
 const headerSubtitle = typeof studioOptions.headerSubtitle === 'string' ? studioOptions.headerSubtitle.trim() : '';
-$('#workspace-studio-name').textContent = headerTitle || studioName;
+brandLabel.textContent = headerTitle || studioName;
 $('#workspace-subtitle').textContent = headerSubtitle;
 $('#workspace-subtitle').hidden = !headerSubtitle;
 document.title = studioName;
-setupSidebar();
+setupTopbar();
 installSwipeNavigation();
 const singleApp = registry.apps.length === 1;
 $('#workspace').dataset.singleApp = String(singleApp);
-const titleOnly = Boolean(headerTitle);
-$('#workspace').dataset.titleOnly = String(titleOnly);
-$('#breadcrumb-separator').hidden = titleOnly;
-$('#breadcrumb-app').hidden = titleOnly;
 $('#app-picker').hidden = singleApp;
 $('#app-picker-label').hidden = singleApp;
 $('#app-picker').innerHTML = registry.apps.map(entry=>`<option value="${esc(entry.id)}">${esc(entry.name)}</option>`).join('');
@@ -1276,11 +1497,15 @@ document.addEventListener('keydown',event=>{
   if (frame && ['Enter',' '].includes(event.key)) { event.preventDefault(); frame.click(); }
 });
 document.addEventListener('click',event=>{
-  const target = event.target.closest('[data-open-card],[data-view],[data-board],[data-state-card],[data-present],[data-map-flow]');
+  const target = event.target.closest('[data-open-card],[data-view],[data-board],[data-state-card],[data-present],[data-map-flow],[data-map-journey]');
   if (!target) return;
-  if (target.dataset.mapFlow !== undefined) {
-    mapFlow = Number(target.dataset.mapFlow); renderView();
-    document.querySelector(`[data-map-flow="${mapFlow}"]`)?.focus({preventScroll:true, focusVisible:false});
+  if (target.dataset.mapFlow !== undefined || target.dataset.mapJourney !== undefined) {
+    const inBranches = Boolean(target.closest('.graph-branches'));
+    mapFlow = target.dataset.mapFlow !== undefined ? Number(target.dataset.mapFlow) : -1;
+    mapJourney = target.dataset.mapJourney || null;
+    renderView();
+    const selector = target.dataset.mapFlow !== undefined ? `[data-map-flow="${mapFlow}"]` : `[data-map-journey="${CSS.escape(mapJourney)}"]:not([data-map-flow])`;
+    document.querySelector(`${inBranches ? '.graph-branches ' : '.graph-pills:not(.graph-branches) '}${selector}`)?.focus({preventScroll:true, focusVisible:false});
     document.querySelector('.graph-node.on')?.scrollIntoView({block:'nearest', inline:'center', behavior:'smooth'});
   }
   else if (target.dataset.stateCard) {
@@ -1309,8 +1534,12 @@ content.addEventListener('change',event=>{
   if(event.target.id==='kind-filter') {
     kind=event.target.value; drawBoards();
   } else if(event.target.id==='board-filter'){
-    boardFilter=app.NAV.some(board=>board.id===event.target.value)?event.target.value:'all';
+    boardFilter=journeyGroups().some(group=>group.id===event.target.value)?event.target.value:'all';
     drawBoards();
+  } else if(event.target.id==='journey-filter'){
+    findingsJourney=event.target.value;
+    renderView();
+    $('#journey-filter',content)?.focus({preventScroll:true});
   }
 });
 phone.addEventListener('click',event=>{

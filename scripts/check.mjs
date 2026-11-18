@@ -145,8 +145,14 @@ for (const registered of configurations) {
   catch (error) { failures.push(`${prefix} import: ${error.message}`); continue; }
   check(`${prefix} identity`, () => assert.ok(app.identity?.name && app.identity?.id === registered.id));
   check(`${prefix} freshState`, () => assert.equal(typeof app.freshState, 'function'));
-  check(`${prefix} SCREENS`, () => assert.ok(app.SCREENS && Object.keys(app.SCREENS).length));
-  check(`${prefix} NAV`, () => assert.ok(Array.isArray(app.NAV) && app.NAV.length));
+  // A design state with nothing captured yet has no screens at all: empty SCREENS, NAV and FLOWS.
+  const uncaptured = Array.isArray(app.NAV) && !app.NAV.length;
+  check(`${prefix} SCREENS`, () => assert.ok(app.SCREENS && typeof app.SCREENS === 'object' && (uncaptured || Object.keys(app.SCREENS).length)));
+  check(`${prefix} NAV`, () => assert.ok(Array.isArray(app.NAV)));
+  if (uncaptured) check(`${prefix} no screens yet`, () => {
+    assert.equal(Object.keys(app.SCREENS || {}).length, 0, 'screens need a NAV entry');
+    assert.ok(Array.isArray(app.FLOWS) && !app.FLOWS.length, 'FLOWS must be empty without screens');
+  });
   if (!app.SCREENS || !Array.isArray(app.NAV) || typeof app.freshState !== 'function') continue;
 
   const appearances = app.appearances ?? ['light', 'dark'];
@@ -173,7 +179,7 @@ for (const registered of configurations) {
     const second = app.freshState();
     assert.notEqual(first, second, 'freshState must create a new object');
     assert.deepEqual(first, second, 'freshState must be deterministic');
-    assert.ok(app.SCREENS[first.route], 'initial route has no renderer');
+    if (!uncaptured) assert.ok(app.SCREENS[first.route], 'initial route has no renderer');
   });
 
   if (app.library) {
@@ -256,6 +262,12 @@ for (const registered of configurations) {
       assert.ok(builtIns.has(action) || typeof app.handlers?.[action] === 'function', 'missing handler');
       assert.ok(context.label && context.description, 'action needs a label and description');
       if (context.to) assert.ok(app.SCREENS[context.to], `unknown destination ${context.to}`);
+      // Optional route references from screenshot hotspots (draft-existing): lateTo, over, leave, backPast.
+      for (const key of ['lateTo', 'over']) if (context[key] !== undefined) assert.ok(app.SCREENS[context[key]], `unknown ${key} route ${context[key]}`);
+      for (const key of ['leave', 'backPast']) if (context[key] !== undefined) {
+        assert.ok(Array.isArray(context[key]) && context[key].length, `${key} must be a nonempty list of routes`);
+        for (const route of context[key]) assert.ok(app.SCREENS[route], `unknown ${key} route ${route}`);
+      }
     });
   }
   for (const action of Object.keys(app.handlers || {})) {
@@ -327,7 +339,7 @@ for (const registered of configurations) {
       assert.equal(JSON.stringify(state), before, 'renderers must not mutate state');
     });
   }
-  check(`${prefix} FLOWS`, () => assert.ok(Array.isArray(app.FLOWS) && app.FLOWS.length));
+  check(`${prefix} FLOWS`, () => assert.ok(Array.isArray(app.FLOWS) && (uncaptured || app.FLOWS.length)));
   for (const flow of app.FLOWS || []) {
     check(`${prefix} flow ${flow.title}`, () => {
       assert.ok(flow.title && Array.isArray(flow.steps) && flow.steps.length >= 2);
@@ -335,6 +347,26 @@ for (const registered of configurations) {
       for (const step of flow.steps.slice(0, -1)) assert.ok(step.label, 'each outgoing edge needs a label');
     });
   }
+  // Optional FLOW_STAGES: { journeyId: [{ label, cards }] } draws that journey as a staged left-to-right tree.
+  if (app.FLOW_STAGES !== undefined) check(`${prefix} FLOW_STAGES`, () => {
+    assert.ok(app.FLOW_STAGES && typeof app.FLOW_STAGES === 'object' && !Array.isArray(app.FLOW_STAGES), 'FLOW_STAGES must be an object keyed by journey id');
+    for (const [journey, stages] of Object.entries(app.FLOW_STAGES)) {
+      const inJourney = new Set((app.FLOWS || []).filter(flow => flow.journey === journey).flatMap(flow => flow.steps.map(step => step.card)));
+      assert.ok(inJourney.size, `stages for ${journey}: no FLOWS entry has journey "${journey}"`);
+      assert.ok(Array.isArray(stages) && stages.length, `stages for ${journey} must be a non-empty array`);
+      const seen = new Set();
+      for (const stage of stages) {
+        assert.ok(typeof stage?.label === 'string' && stage.label.trim(), `a stage of ${journey} has no label`);
+        assert.ok(Array.isArray(stage.cards) && stage.cards.length, `stage "${stage.label}" of ${journey} lists no screens`);
+        for (const id of stage.cards) {
+          assert.ok(cardIDs.has(id), `stage "${stage.label}" of ${journey}: unknown card ${id}`);
+          assert.ok(inJourney.has(id), `stage "${stage.label}" of ${journey}: ${id} is on none of the journey's paths`);
+          assert.ok(!seen.has(id), `stages of ${journey}: ${id} is listed twice`);
+          seen.add(id);
+        }
+      }
+    }
+  });
 }
 
 // Findings and comparisons connect cards across design states.
@@ -357,12 +389,29 @@ for (const entry of registry.apps) {
     if (data.summary !== undefined) assert.equal(typeof data.summary, 'string', 'summary must be text');
     if (entry.variants) for (const state of Object.values(states)) assert.ok(entry.variants.some(variant => variant.id === state), `unknown design state ${state}`);
     assert.equal(new Set(data.items.map(item => item?.id)).size, data.items.length, 'finding IDs must be unique');
+    // Optional registries: journeys tag findings, opportunities group them in priority order.
+    for (const key of ['journeys', 'opportunities']) {
+      if (data[key] === undefined) continue;
+      assert.ok(Array.isArray(data[key]), `${key} must be an array`);
+      for (const record of data[key]) assert.ok(typeof record?.id === 'string' && record.id && typeof record.title === 'string' && record.title.trim(), `each of ${key} needs an id and title`);
+      assert.equal(new Set(data[key].map(record => record.id)).size, data[key].length, `${key} IDs must be unique`);
+    }
+    for (const record of data.journeys || []) if (record.summary !== undefined) assert.equal(typeof record.summary, 'string', `journey ${record.id} summary must be text`);
+    for (const record of data.journeys || []) if (record.messages !== undefined) assert.equal(typeof record.messages, 'boolean', `journey ${record.id} messages must be true or false`);
+    for (const record of data.opportunities || []) {
+      assert.ok(['high', 'medium', 'low'].includes(record.impact), `opportunity ${record.id} impact must be high, medium, or low`);
+      if (record.summary !== undefined) assert.equal(typeof record.summary, 'string', `opportunity ${record.id} summary must be text`);
+    }
   });
+  const registryIds = key => new Set(Array.isArray(data?.[key]) ? data[key].map(record => record?.id) : []);
+  const journeyIds = registryIds('journeys'), opportunityIds = registryIds('opportunities');
   for (const item of Array.isArray(data?.items) ? data.items : []) {
     check(`${entry.id} finding ${item?.id}`, () => {
       assert.ok(typeof item?.id === 'string' && item.id && typeof item.title === 'string' && item.title.trim(), 'id and title are required');
       assert.ok(['high', 'medium', 'low'].includes(item.severity), 'severity must be high, medium, or low');
       for (const field of ['problem', 'recommendation']) if (item[field] !== undefined) assert.equal(typeof item[field], 'string', `${field} must be text`);
+      if (item.journey !== undefined) assert.ok(journeyIds.has(item.journey), `journey references unknown journey ${item.journey}`);
+      if (item.opportunity !== undefined) assert.ok(opportunityIds.has(item.opportunity), `opportunity references unknown opportunity ${item.opportunity}`);
       for (const [field, state] of [['evidence', states.evidence], ['proposal', states.proposal]]) {
         const ids = item[field] ?? [];
         assert.ok(Array.isArray(ids), `${field} must list card IDs`);

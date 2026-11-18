@@ -6,7 +6,7 @@ Create a new instance from the product folder:
 npm run create-instance -- ../client-app-flow --name "Client App Flow" --app-name "Client" --port 8004
 ```
 
-Add the generated folder as a local Codex project. Start a chat inside that project and use the brief below. Work in the client copy; preserve the master.
+Add the generated folder as its own local project in your coding agent (in Codex: a local project named after the instance; its Run, Phone preview, Check, and Export actions live in `.codex/environments/environment.toml`). Start a chat inside that project and use the brief below. Work in the client copy; preserve the master. The step-by-step workflow is in [AUDIT-WORKFLOW.md](AUDIT-WORKFLOW.md).
 
 The master stores browser source in `app/` and guidance in `docs/`. Generated clients keep the flat layout described below: their `config.js`, runtime, and kickoff file are at the client root. Read the client’s own instructions when working there.
 
@@ -16,11 +16,11 @@ Build **[app name] App Flow** in this instance. Read `AGENTS.md`, `README.md`, `
 
 **Audience:** [Who will review this, and what decision should it help them make?]
 
-**Existing evidence:** [Screenshot folder for `npm run draft-existing`, or observed behavior. Identify gaps.]
+**Existing evidence:** [Captures inbox for `npm run import-captures` (or a folder for `npm run draft-existing`), or observed behavior. Identify gaps.]
 
 **Findings:** [The problems the audit must surface, ranked high / medium / low, each tied to evidence and a proposed fix.]
 
-**Journeys:** [Entry point → important choices → outcome.]
+**Journeys:** [Entry point → important choices → outcome. These become the `journeys` registry in `apps/findings.js` and the inbox folder names.]
 
 **Future proposal:** [What changes, why, and what remains unresolved?]
 
@@ -38,7 +38,7 @@ For Future, build editable proposed screens and flows in its separate module. Ke
 
 Use plain HTML/CSS/JS and the existing module contract. Keep client styling and tokens in the app; keep the Studio shell minimal. Keep loading and saving as separate cards, using `ctx.advance()` to complete each once per open prototype. Reset/R and Back restore loading for inspection; close and reopen to replay. Use managed `ctx.later()` for incidental timed updates. Update `instance.json` whenever adding an exported module or asset.
 
-Configure optional Overview, workspace heading, icon, sidebar, appearance, and Design library visibility in `config.js`. Put overview copy in each app module. Keep `files` as the full local inventory; use optional `exportFiles` to select the review bundle while retaining all active modules and their dependencies. For unbuilt features, explain the limit and the next useful action.
+Configure optional Overview, workspace heading, icon, top-bar scope label, appearance, and Design library visibility in `config.js` (see [APP-MODULES.md](APP-MODULES.md#workspace-configuration)). Put overview copy in each app module. Keep `files` as the full local inventory; use optional `exportFiles` to select the review bundle while retaining all active modules and their dependencies. For unbuilt features, explain the limit and the next useful action.
 
 For each screen or overlay, write one short `approach` sentence and one short `rationale` sentence. They appear first in the detail panel, followed by entry context and interactions. Give routes stable task-based names and use card IDs to distinguish loading, error, and other states. Use those identifiers in change requests instead of ambiguous references to “this screen.”
 

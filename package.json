@@ -17,7 +17,10 @@
     "create-app": "node scripts/create-app.mjs",
     "create-instance": "node scripts/create-instance.mjs",
     "export-share": "node scripts/export-share.mjs",
-    "scan-fonts": "node scripts/scan-fonts.mjs"
+    "scan-fonts": "node scripts/scan-fonts.mjs",
+    "import-captures": "node scripts/import-captures.mjs",
+    "extract-frames": "node scripts/extract-frames.mjs",
+    "blur-regions": "node scripts/blur-regions.mjs"
   },
   "engines": {
     "node": ">=18"
