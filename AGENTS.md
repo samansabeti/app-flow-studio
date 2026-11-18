@@ -1,12 +1,14 @@
 # App Flow Studio project instructions
 
-Reusable product for UX audits of existing apps: Existing screens mapped from screenshots, findings, and Future concepts, in independent generated client instances. When new here, read `README.md`, `app/config.js`, and the relevant module under `app/apps/`; then the doc for the task: `docs/APP-MODULES.md` (module contract, config), `docs/AUDIT-WORKFLOW.md` (captures to findings), `docs/SHARING.md` (export, publish), `docs/KICKOFF.md` (new instance).
+Reusable product for UX audits of existing apps: Existing screens mapped from screenshots, findings, and Future concepts, in independent generated client instances. When new here, read `README.md`, `app/config.js`, and the relevant module under `app/apps/`; then the doc for the task: `docs/APP-MODULES.md` (module contract, config), `docs/AUDIT-WORKFLOW.md` (captures to findings), `docs/SHARING.md` (export, publish), `docs/KICKOFF.md` (new instance), `docs/GETTING-STARTED.md` (non-coder setup).
 
 ## Current state
 
 - Developed on localhost only (`npm run dev`, http://127.0.0.1:8002). Not deployed: no hosting is connected to this repo. GitHub `samansabeti/app-flow-studio` is private for now and will be made public.
 - The built-in demo is the fictional, code-drawn Daylight app plus a Blank app. A screenshot-based demo instance is planned from screenshots Sam will supply; until then the client template starts empty with three example journeys.
 - Ingest is production screenshots (captures inbox → `npm run import-captures`). Screen-recording extraction exists but is secondary.
+- Audience: recruiters reviewing Sam's work and anyone (including non-coders) using it for their own audits. MIT licensed. README is the pitch; `docs/GETTING-STARTED.md` is the no-coding-assumed path. Keep both accurate when commands change. GitHub Actions (`.github/workflows/check.yml`) runs check, check:build and build.
+- History before Nov 18 was imported from the private archive repo with client names, local paths and co-author trailers removed. Never reintroduce them.
 
 Requested local edits are authorized: implement, check the affected behavior, report. Ask only for material ambiguity or anything outside scope. Group local commits at useful milestones. Commits credit Sam only: no Claude/AI co-author trailers or generated-by lines.
 

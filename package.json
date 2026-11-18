@@ -2,6 +2,7 @@
   "name": "app-flow-studio",
   "version": "1.3.0",
   "private": true,
+  "license": "MIT",
   "description": "Reusable UX audits and proposed flows, with independent client instances.",
   "type": "module",
   "appFlow": {
