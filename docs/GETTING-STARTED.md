@@ -73,7 +73,7 @@ To skip `CAPTURES_DIR` every time, add `"capturesDir": "../acme-captures"` to `i
 The import makes a first draft. To finish it, edit the plain JavaScript files in `apps/`, or ask an AI coding assistant to do it:
 
 - **Hotspots** (`apps/existing.js`): name each screen and say where each button leads, so the screenshots click through like the real app.
-- **Findings** (`apps/findings.js`): each problem, how severe it is, which screenshots prove it, and what to do about it. Findings appear in their own view, with a **Present** mode for walking stakeholders through them.
+- **Findings** (`apps/findings.js`): each problem, how severe it is, which screenshots prove it, and what to do about it. Findings appear in their own view. **Review** lets you accept, edit or reject each one beside its screenshots, and **Present** walks stakeholders through them.
 - **Future concepts** (`apps/future.js`): proposed screens shown beside the evidence, with an Existing / Future toggle.
 
 Run `npm run check` after editing: it points out broken links between screens, missing evidence, and typos in IDs.

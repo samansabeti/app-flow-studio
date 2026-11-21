@@ -9,6 +9,8 @@
 //   priority order. The Overview lists them as early directions until they are validated.
 // status (optional): a short label beside the Findings title, such as 'Work in progress'.
 // Cite only what the screenshots show. The Findings view appears once items are added.
+// Review in the local preview saves accept, edit and reject decisions beside this file in findings-review.json;
+// this file keeps the draft. Once a review exists, exports carry accepted findings only.
 export default {
   summary: '',
   status: 'Work in progress',

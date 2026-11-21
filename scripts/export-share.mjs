@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile, rename, rm, unlink, open } from 'node:fs/pr
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
-import { STATIC_CORE, existingPath, exists, safeRead, digest, json, configText, parseConfig, validateManifest, label, isShareContent, checkLocalDependencies, writeNewTree, treeHashes, fail } from './instance-files.mjs';
+import { STATIC_CORE, existingPath, exists, safeRead, digest, json, configText, parseConfig, validateManifest, label, isShareContent, checkLocalDependencies, writeNewTree, treeHashes, shareReviewedFindings, fail } from './instance-files.mjs';
 import { projectPaths } from './project-paths.mjs';
 
 const source = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -43,6 +43,7 @@ export async function exportShare(args = []) {
     defaultApp: manifest.app.id,
     apps: [manifest.app],
   }));
+  const reviewNotes = await shareReviewedFindings(browserRoot, [manifest.app], files);
   checkLocalDependencies(files);
   const hashes = Object.fromEntries([...files].sort(([a], [b]) => a.localeCompare(b)).map(([file, bytes]) => [file, digest(bytes)]));
   const output = path.join(root, name), state = path.join(root, '.app-flow-exports');
@@ -69,6 +70,7 @@ export async function exportShare(args = []) {
     await rename(recordTemp, recordPath);
     finished = true;
     if (backedUp) await rm(backup, { recursive: true });
+    for (const note of reviewNotes) console.log(note);
     console.log(`Exported ${files.size} files to ${output}\nLocal static files only; nothing was uploaded or deployed.\nDocumentation, tools, editor settings, and instance/source manifests were excluded.`);
     return output;
   } catch (error) {

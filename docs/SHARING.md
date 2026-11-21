@@ -16,6 +16,7 @@ The export writes a static bundle into a new child folder of the instance (defau
 
 - `instance.json.files` is the full local content inventory. Optional `exportFiles` is the subset for export and phone preview; it must keep every active module, stylesheet, branding icon, required asset, and third-party license file. Statically imported and literal asset paths are checked; computed filenames need a manual inventory check.
 - The exporter only replaces its own unchanged earlier output; it refuses an unowned or hand-edited folder (export to a new `--out` instead). Re-export after every edit and keep the bundle unchanged until it is uploaded.
+- Once `apps/findings-review.json` holds any decision, the export carries accepted findings only, with their edits, and the opportunities they belong to. Unreviewed and rejected findings, rejection reasons, original drafts of edited findings, and the review file itself are left out; the export prints the counts. With no review, findings are exported as written.
 - Every screen keeps its `?app=…&state=…&card=…` link.
 
 ## View the export locally

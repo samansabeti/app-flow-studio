@@ -3,13 +3,14 @@ import { copyFile, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
+import { pathToFileURL } from 'node:url';
 import { browserFiles, buildStudio } from './build.mjs';
 import { projectPaths } from './project-paths.mjs';
 import { treeHashes } from './instance-files.mjs';
 
 const source = await browserFiles();
 const { browserRoot } = await projectPaths();
-const expected = ['app.css', 'apps/blank.js', 'apps/daylight.js', 'config.js', 'index.html', 'studio.css', 'studio.js', 'ui.js'];
+const expected = ['app.css', 'apps/blank.js', 'apps/daylight-findings.js', 'apps/daylight.js', 'config.js', 'index.html', 'studio.css', 'studio.js', 'ui.js'];
 
 async function fixture(t) {
   const root = await realpath(await mkdtemp(path.join(tmpdir(), 'app-flow-build-check-')));
@@ -98,4 +99,34 @@ test('project paths default to flat clients and reject escaping roots', async t 
   assert.deepEqual(await projectPaths(root), { projectRoot: root, browserRoot: root });
   await writeFile(path.join(root, 'package.json'), '{"appFlow":{"browserRoot":"../outside"}}');
   await assert.rejects(projectPaths(root), /must be/);
+});
+
+test('a saved findings review ships accepted findings only and never the review file', async t => {
+  const root = await fixture(t);
+  const draft = (await import(pathToFileURL(path.join(root, 'app/apps/daylight-findings.js')).href)).default;
+  const [accepted, edited, rejected] = draft.items;
+  await writeFile(path.join(root, 'app/apps/daylight-findings-review.json'), JSON.stringify({
+    [accepted.id]: { decision: 'accepted', reviewedOn: '2026-01-05' },
+    [edited.id]: { decision: 'accepted', edits: { title: 'REVIEW_EDITED_TITLE' }, reviewedOn: '2026-01-05' },
+    [rejected.id]: { decision: 'rejected', reason: 'REVIEW_REJECT_REASON' },
+  }));
+  const result = await buildStudio(root);
+  assert.deepEqual(result.files, expected);
+  const text = await readFile(path.join(result.output, 'apps/daylight-findings.js'), 'utf8');
+  const shared = (await import(pathToFileURL(path.join(result.output, 'apps/daylight-findings.js')).href)).default;
+  assert.deepEqual(shared.items.map(item => item.id), [accepted.id, edited.id]);
+  assert.equal(shared.items[1].title, 'REVIEW_EDITED_TITLE');
+  assert.equal(shared.reviewed, true);
+  assert.deepEqual(shared.opportunities.map(record => record.id), [...new Set([accepted.opportunity, edited.opportunity])]);
+  for (const hidden of [rejected.title, draft.items.at(-1).title, edited.title, 'REVIEW_REJECT_REASON']) assert.ok(!text.includes(hidden), `shared findings leak: ${hidden}`);
+  assert.equal(result.reviewNotes.length, 1);
+});
+
+test('findings without a review are copied unchanged, and a malformed review stops the build', async t => {
+  const root = await fixture(t);
+  await writeFile(path.join(root, 'app/apps/daylight-findings-review.json'), '{}');
+  const { output } = await buildStudio(root);
+  assert.deepEqual(await readFile(path.join(output, 'apps/daylight-findings.js')), source.files.get('apps/daylight-findings.js'));
+  await writeFile(path.join(root, 'app/apps/daylight-findings-review.json'), JSON.stringify({ any: { decision: 'maybe' } }));
+  await assert.rejects(buildStudio(root), /decision/);
 });

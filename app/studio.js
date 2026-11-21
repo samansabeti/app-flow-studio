@@ -7,6 +7,21 @@ const fixedStudioAppearance = ['light','dark'].includes(studioOptions.appearance
 const allViews = [['overview','Overview'],['findings','Findings'],['screens','Screens'],['map','Flow map'],['library','Design library']];
 // Findings come from the app's registry entry, so their view is known only after loading.
 let findings = null;
+// Findings review: accept, edit or reject decisions saved beside the findings module and laid over its draft.
+// Only the local preview serves it; a shared copy already carries just the accepted findings.
+let findingsReview = {}, reviewURL = null, reviewWritable = false;
+const previewHost = /^(?:localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(?:1[6-9]|2\d|3[01])\.\d+\.\d+)$/.test(location.hostname);
+async function loadReview(findingsPath, data) {
+  const none = { url: null, records: {}, writable: false };
+  if (!findingsPath || !previewHost || data?.reviewed || !data?.items?.length) return none;
+  const url = findingsPath.replace(/\.m?js$/, '-review.json');
+  try {
+    const response = await fetch(url, { cache: 'no-store' });
+    if (!response.ok) return none;
+    const records = await response.json();
+    return { url, records: records && typeof records === 'object' && !Array.isArray(records) ? records : {}, writable: response.headers.get('X-Findings-Review') === 'writable' };
+  } catch { return none; }
+}
 let designSystem = null, designSystemPath = null, designSystemPoll = null;
 const viewEnabled = id => (id !== 'overview' || studioOptions.showOverview === true)
   && (id !== 'library' || studioOptions.showDesignLibrary !== false)
@@ -235,7 +250,10 @@ async function loadApp(id, requestedVariant) {
     ...variants.map(item => import(item.module)),
   ]);
   if (version !== selectionVersion) return;
+  const review = await loadReview(registered.findings, findingsModule?.default);
+  if (version !== selectionVersion) return;
   findings = findingsModule?.default || null;
+  findingsReview = review.records; reviewURL = review.url; reviewWritable = review.writable;
   designSystem = designModule?.default || null; designSystemPath = registered.designSystem || null;
   applyDesignFonts();
   stateEntries = variants;
@@ -298,7 +316,7 @@ function renderOverview() {
   const opportunityCount = findingRegistry('opportunities').length;
   // Journeys lead the Overview; opportunities follow as early, unvalidated directions (no impact labels here).
   const opportunityList = opportunityCount ? `<ol class="overview-opportunities">${findingRegistry('opportunities').map(record => `<li><span>${esc(record.title)}</span></li>`).join('')}</ol>` : '';
-  const findingsLink = items.length ? `<section class="overview-findings" aria-labelledby="overview-findings-title"><h2 id="overview-findings-title">${opportunityCount ? 'Early directions (not yet validated)' : plural(items.length, 'finding')}</h2><p>${opportunityCount ? 'First-pass ideas from the captured screens, still being reviewed.' : esc(severitySummary(items))}</p>${opportunityList}<div class="overview-findings-actions"><button type="button" class="button-primary" data-view="findings">View findings</button><button type="button" class="button-secondary" data-present="0">Present</button></div></section>` : '';
+  const findingsLink = items.length ? `<section class="overview-findings" aria-labelledby="overview-findings-title"><h2 id="overview-findings-title">${opportunityCount ? 'Early directions (not yet validated)' : plural(items.length, 'finding')}</h2><p>${opportunityCount ? (findings.reviewed ? 'Ideas from the captured screens, each checked against its evidence.' : 'First-pass ideas from the captured screens, still being reviewed.') : esc(severitySummary(items))}</p>${opportunityList}<div class="overview-findings-actions"><button type="button" class="button-primary" data-view="findings">View findings</button><button type="button" class="button-secondary" data-present="0">Present</button></div></section>` : '';
   return `<article class="studio-overview" aria-labelledby="overview-title">${renderAbout()}<header><p class="overview-label">${esc(overview.eyebrow || 'Overview')}</p><h1 id="overview-title">${esc(overview.title || 'Project overview')}</h1>${overview.description ? `<p class="overview-description">${esc(overview.description)}</p>` : ''}</header>${overview.rationale ? `<p class="overview-rationale">${esc(overview.rationale)}</p>` : ''}${renderJourneyTable()}${findingsLink}${strategies.length ? `<section class="overview-approach" aria-labelledby="overview-approach-title"><h2 id="overview-approach-title">${esc(approachTitle)}</h2><ul>${strategies.map(item=>`<li>${strategyHTML(item)}</li>`).join('')}</ul></section>` : ''}${referenceURL ? `<footer class="overview-reference"><a href="${esc(referenceURL)}" target="_blank" rel="noopener noreferrer">${esc(overview.reference.label || 'Read the reference')}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h11v11M19 5 5 19"/></svg></a></footer>` : ''}</article>`;
 }
 // Review framing for someone opening a shared link without a walkthrough.
@@ -353,14 +371,25 @@ function renderJourneyTable() {
 }
 let findingsJourney = 'all';
 // One order everywhere: opportunity priority (ungrouped last), then severity, then file order.
-// Findings numbers and data-present indexes are positions in this list.
-function findingItems() {
+// Every finding with its review laid over the draft: edits replace the drafted text, and `draft` keeps the original.
+function reviewedItems() {
   const items = Array.isArray(findings?.items) ? findings.items : [];
   const opportunities = findingRegistry('opportunities').map(record => record.id);
   const rank = item => opportunities.includes(item.opportunity) ? opportunities.indexOf(item.opportunity) : opportunities.length;
-  return items.map((item, index) => ({ ...item, order: index }))
-    .sort((a, b) => rank(a) - rank(b) || severityOrder.indexOf(a.severity) - severityOrder.indexOf(b.severity) || a.order - b.order);
+  return items.map((item, index) => {
+    const record = Object.hasOwn(findingsReview, item.id) ? findingsReview[item.id] : null;
+    const decision = ['accepted', 'rejected'].includes(record?.decision) ? record.decision : 'unreviewed';
+    const edits = record?.edits && typeof record.edits === 'object' ? record.edits : null;
+    return { ...item, ...(edits || {}), order: index, decision, edited: Boolean(edits && Object.keys(edits).length), reason: typeof record?.reason === 'string' ? record.reason : '', draft: item };
+  }).sort((a, b) => rank(a) - rank(b) || severityOrder.indexOf(a.severity) - severityOrder.indexOf(b.severity) || a.order - b.order);
 }
+// Rejected findings leave the audit: they are not numbered, presented, counted or paired, only listed for the reviewer.
+// Findings numbers and data-present indexes are positions in this list.
+function findingItems() { return reviewedItems().filter(item => item.decision !== 'rejected'); }
+// Review states show once there is something to show: this preview can save a review, or one is already saved.
+const reviewActive = () => reviewWritable || Object.keys(findingsReview).length > 0;
+const reviewStateLabel = item => item.decision === 'accepted' ? (item.edited ? 'Accepted · edited' : 'Accepted') : item.decision === 'rejected' ? 'Rejected' : 'Unreviewed';
+const reviewStateTag = item => `<span class="review-state review-state-${item.decision}">${reviewStateLabel(item)}</span>`;
 const plural = (count, word) => `${count} ${count === 1 ? word : `${word}s`}`;
 const impactLabel = level => ['high', 'medium', 'low'].includes(level) ? `${level[0].toUpperCase() + level.slice(1)} impact` : '';
 function severitySummary(items) {
@@ -393,33 +422,53 @@ function renderFindings() {
   if (!journeys.some(journey => journey.id === findingsJourney)) findingsJourney = 'all';
   // Numbers and Present indexes come from the full ordered list, so filtering never renumbers.
   const indexed = items.map((item, index) => ({ item, index }));
-  const visible = indexed.filter(({ item }) => findingsJourney === 'all' || item.journey === findingsJourney);
+  const inJourney = item => findingsJourney === 'all' || item.journey === findingsJourney;
+  const visible = indexed.filter(({ item }) => inJourney(item));
+  // Rejected findings follow the numbered ones in their group, unnumbered, and only where review states show.
+  const reviewing = reviewActive(), all = reviewedItems();
+  const rejected = reviewing ? all.filter(item => item.decision === 'rejected' && inJourney(item)).map(item => ({ item, index: -1 })) : [];
   const heading = opportunities.length ? 'h3' : 'h2';
-  const findingHTML = ({ item, index }) => `<li class="finding" id="finding-${esc(item.id)}">
+  const reviewLink = item => reviewWritable ? `<button type="button" class="text-button" data-review="${esc(item.id)}">Review</button>` : '';
+  const findingHTML = ({ item, index }) => item.decision === 'rejected' ? `<li class="finding finding-rejected" id="finding-${esc(item.id)}">
+      <span class="finding-number" aria-hidden="true">–</span>
+      <div class="finding-body">
+        <div class="finding-heading">${severityTag(item.severity)}<${heading}>${esc(item.title)}</${heading}>${journeyTag(item)}${reviewStateTag(item)}</div>
+        ${item.problem ? `<p class="finding-problem">${esc(item.problem)}</p>` : ''}
+        ${item.reason ? `<p class="finding-reason">Rejected: ${esc(item.reason)}</p>` : ''}
+        <div class="finding-footer">${findingLinks(evidence, item.evidence)}<span class="finding-tools">${reviewLink(item)}</span></div>
+      </div>
+    </li>` : `<li class="finding" id="finding-${esc(item.id)}">
       <span class="finding-number" aria-hidden="true">${String(index + 1).padStart(2, '0')}</span>
       <div class="finding-body">
-        <div class="finding-heading">${severityTag(item.severity)}<${heading}>${esc(item.title)}</${heading}>${journeyTag(item)}</div>
+        <div class="finding-heading">${severityTag(item.severity)}<${heading}>${esc(item.title)}</${heading}>${journeyTag(item)}${reviewing ? reviewStateTag(item) : ''}</div>
         ${item.problem ? `<p class="finding-problem">${esc(item.problem)}</p>` : ''}
         ${item.recommendation ? `<p class="finding-recommendation"><strong>Recommendation</strong> ${esc(item.recommendation)}</p>` : ''}
-        <div class="finding-footer">${findingLinks(evidence, item.evidence)}${findingLinks(proposal, item.proposal)}<button type="button" class="text-button" data-present="${index}">Present</button></div>
+        <div class="finding-footer">${findingLinks(evidence, item.evidence)}${findingLinks(proposal, item.proposal)}<span class="finding-tools">${reviewLink(item)}<button type="button" class="text-button" data-present="${index}">Present</button></span></div>
       </div>
     </li>`;
   const list = entries => `<ol class="findings-list">${entries.map(findingHTML).join('')}</ol>`;
   let body;
-  if (!visible.length) body = `<p class="findings-empty">No findings for this journey yet.</p>`;
-  else if (!opportunities.length) body = list(visible);
+  if (!visible.length && !rejected.length) body = `<p class="findings-empty">No findings for this journey yet.</p>`;
+  else if (!opportunities.length) body = list([...visible, ...rejected]);
   else {
-    const groups = [...opportunities.map((opportunity, rank) => ({ opportunity, rank, entries: visible.filter(({ item }) => item.opportunity === opportunity.id) })),
-      { opportunity: null, entries: visible.filter(({ item }) => !findingOpportunity(item)) }];
+    const grouped = (entries, opportunity) => entries.filter(({ item }) => opportunity ? item.opportunity === opportunity.id : !findingOpportunity(item));
+    const groups = [...opportunities.map((opportunity, rank) => ({ opportunity, rank })), { opportunity: null }]
+      .map(group => ({ ...group, entries: [...grouped(visible, group.opportunity), ...grouped(rejected, group.opportunity)] }));
     body = groups.filter(group => group.entries.length || (group.opportunity && findingsJourney === 'all')).map(({ opportunity, rank, entries }) => {
       const id = opportunity ? `opportunity-${esc(opportunity.id)}` : 'opportunity-ungrouped';
       const meta = opportunity ? `<span class="opportunity-rank">Opportunity ${rank + 1}</span>${impactLabel(opportunity.impact) ? `<span class="impact impact-${esc(opportunity.impact)}">${esc(impactLabel(opportunity.impact))}</span>` : ''}` : '';
-      return `<section class="opportunity" aria-labelledby="${id}"><header class="opportunity-heading"><div class="opportunity-meta">${meta}<span class="opportunity-count">${plural(entries.length, 'finding')}</span></div><h2 id="${id}">${esc(opportunity ? opportunity.title : 'Not yet grouped')}</h2>${opportunity?.summary ? `<p>${esc(opportunity.summary)}</p>` : ''}</header>${entries.length ? list(entries) : '<p class="findings-empty">No findings grouped here yet.</p>'}</section>`;
+      const count = reviewing ? `${entries.filter(({ item }) => item.decision === 'accepted').length} of ${entries.length} accepted` : plural(entries.length, 'finding');
+      return `<section class="opportunity" aria-labelledby="${id}"><header class="opportunity-heading"><div class="opportunity-meta">${meta}<span class="opportunity-count">${count}</span></div><h2 id="${id}">${esc(opportunity ? opportunity.title : 'Not yet grouped')}</h2>${opportunity?.summary ? `<p>${esc(opportunity.summary)}</p>` : ''}</header>${entries.length ? list(entries) : '<p class="findings-empty">No findings grouped here yet.</p>'}</section>`;
     }).join('');
   }
   const filter = journeys.length ? `<div class="filters"><select id="journey-filter" aria-label="Filter by journey"><option value="all">All journeys</option>${journeys.map(journey => `<option value="${esc(journey.id)}" ${findingsJourney === journey.id ? 'selected' : ''}>${esc(journey.title)} (${items.filter(item => item.journey === journey.id).length})</option>`).join('')}</select></div>` : '';
-  const summary = [opportunities.length ? `${opportunities.length} ${opportunities.length === 1 ? 'opportunity' : 'opportunities'}` : '', severitySummary(visible.map(({ item }) => item))].filter(Boolean).join(' · ');
-  return `<div class="section-toolbar findings-toolbar"><h1 class="section-title">Findings ${findings.status ? `<em class="findings-status">${esc(findings.status)}</em>` : ''}<span aria-live="polite">${esc(summary)}</span></h1><div class="findings-actions">${filter}<button type="button" class="button-secondary present-start" data-present="${visible[0]?.index ?? 0}">Present</button></div></div>
+  const decided = decision => all.filter(item => item.decision === decision).length;
+  const summary = [opportunities.length ? `${opportunities.length} ${opportunities.length === 1 ? 'opportunity' : 'opportunities'}` : '',
+    reviewing ? `${decided('accepted')} accepted · ${decided('rejected')} rejected · ${decided('unreviewed')} unreviewed` : severitySummary(visible.map(({ item }) => item))].filter(Boolean).join(' · ');
+  // While a review is under way the status is its live count; the typed status returns in shared copies.
+  const status = reviewing ? `${all.length - decided('unreviewed')} of ${all.length} reviewed` : findings.status;
+  const reviewStart = reviewWritable ? `<button type="button" class="button-primary" data-review="">${!decided('unreviewed') ? 'Review again' : decided('unreviewed') < all.length ? 'Continue review' : 'Review'}</button>` : '';
+  return `<div class="section-toolbar findings-toolbar"><h1 class="section-title">Findings ${status ? `<em class="findings-status">${esc(status)}</em>` : ''}<span aria-live="polite">${esc(summary)}</span></h1><div class="findings-actions">${filter}${reviewStart}<button type="button" class="button-secondary present-start" data-present="${visible[0]?.index ?? 0}">Present</button></div></div>
     ${findings.summary ? `<p class="findings-summary">${esc(findings.summary)}</p>` : ''}
     ${body}`;
 }
@@ -1227,6 +1276,139 @@ $('#present-previous').addEventListener('click', () => movePresenter(-1));
 $('#present-next').addEventListener('click', () => movePresenter(1));
 $('#present-close').addEventListener('click', () => presenter.close());
 
+// Review mode: one finding at a time beside all of its evidence, with accept, edit and reject saved to the review file.
+const reviewer = $('#review');
+const reviewRubric = ['Can I see this in the evidence?', 'Is it a user problem, not a taste call?', 'Is the recommendation specific enough to draw?'];
+const reviewFields = ['severity', 'title', 'problem', 'recommendation'];
+let reviewId = null, reviewMode = 'view', reviewOpener = null, reviewSaving = false;
+function reviewDate() {
+  const now = new Date(), two = value => String(value).padStart(2, '0');
+  return `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())}`;
+}
+function renderReviewer() {
+  const items = reviewedItems(), index = Math.max(0, items.findIndex(item => item.id === reviewId)), item = items[index];
+  reviewId = item.id;
+  const left = items.filter(entry => entry.decision === 'unreviewed').length;
+  $('#review-position').textContent = `Finding ${index + 1} of ${items.length} · ${left ? `${left} left to review` : 'all reviewed'}`;
+  $('#review-previous').disabled = index === 0;
+  $('#review-next').disabled = index === items.length - 1;
+  $('#review-dots').innerHTML = items.map((entry, position) => `<button type="button" class="review-dot review-dot-${entry.decision}" data-review-goto="${esc(entry.id)}" ${position === index ? 'aria-current="true"' : ''} aria-label="Finding ${position + 1}, ${reviewStateLabel(entry)}"></button>`).join('');
+  const opportunity = findingOpportunity(item), journey = findingJourney(item);
+  const context = opportunity || journey ? `<dl class="present-context review-context">${opportunity ? `<div><dt>Opportunity ${findingRegistry('opportunities').indexOf(opportunity) + 1}</dt><dd>${esc(opportunity.title)}</dd></div>` : ''}${journey ? `<div><dt>Journey</dt><dd>${esc(journey.title)}</dd></div>` : ''}</dl>` : '';
+  let text;
+  if (reviewMode === 'edit') {
+    text = `<form id="review-edit" class="review-form"><h2 id="review-title" class="sr-only">Edit finding</h2>
+      <label>Severity<select id="review-severity">${severityOrder.map(level => `<option value="${level}" ${item.severity === level ? 'selected' : ''}>${level[0].toUpperCase() + level.slice(1)}</option>`).join('')}</select></label>
+      <label>Title<input id="review-title-input" maxlength="300" required value="${esc(item.title)}"></label>
+      <label>Problem<textarea id="review-problem" maxlength="4000">${esc(item.problem)}</textarea></label>
+      <label>Recommendation<textarea id="review-recommendation" maxlength="4000">${esc(item.recommendation)}</textarea></label>
+      <div class="review-actions"><button type="submit" class="button-primary review-accept">Save and accept</button><button type="button" class="button-secondary" data-review-act="cancel">Cancel</button></div></form>`;
+  } else {
+    const actions = reviewMode === 'reject'
+      ? `<form id="review-reject" class="review-form"><label>Reason, optional<input id="review-reason" maxlength="500" placeholder="Taste call, not in the evidence, too vague…"></label><div class="review-actions"><button type="submit" class="button-secondary review-reject">Reject finding</button><button type="button" class="button-secondary" data-review-act="cancel">Cancel</button></div></form>`
+      : item.decision === 'unreviewed'
+        ? `<div class="review-actions"><button type="button" class="button-primary review-accept" data-review-act="accept">Accept <kbd>A</kbd></button><button type="button" class="button-secondary" data-review-act="edit">Edit <kbd>E</kbd></button><button type="button" class="button-secondary review-reject" data-review-act="reject">Reject <kbd>R</kbd></button></div>`
+        : `<div class="review-actions review-decided">${reviewStateTag(item)}<button type="button" class="text-button" data-review-act="edit">Edit</button>${item.edited ? '<button type="button" class="text-button" data-review-act="restore">Restore the original draft</button>' : ''}<button type="button" class="text-button" data-review-act="undo">Undo decision</button></div>${item.decision === 'rejected' && item.reason ? `<p class="finding-reason">${esc(item.reason)}</p>` : ''}`;
+    text = `${context}${severityTag(item.severity)}<h2 id="review-title">${esc(item.title)}</h2>${item.problem ? `<p class="finding-problem">${esc(item.problem)}</p>` : ''}${item.recommendation ? `<p class="finding-recommendation"><strong>Recommendation</strong> ${esc(item.recommendation)}</p>` : ''}
+      <p class="review-note">${item.edited ? 'Edited in review. The original draft is kept.' : item.decision === 'unreviewed' ? 'Draft. Not yet reviewed.' : ''}</p>
+      <div class="review-rubric"><p>Before you decide</p><ol>${reviewRubric.map(question => `<li>${esc(question)}</li>`).join('')}</ol></div>${actions}`;
+  }
+  const { evidence } = findingStates();
+  const frames = (item.evidence || []).map(id => presentFrame(evidence, id)).join('');
+  $('#review-body').innerHTML = `<div class="present-text review-text">${text}<p id="review-error" class="review-error" role="alert"></p></div><div class="present-frames review-frames">${frames || '<p class="review-no-evidence">No evidence screens are linked to this finding.</p>'}</div>`;
+  $('#review-announcement').textContent = `Finding ${index + 1}: ${item.title}. ${reviewStateLabel(item)}`;
+  if (reviewMode === 'edit') $('#review-title-input').focus({ preventScroll: true });
+  else if (reviewMode === 'reject') $('#review-reason').focus({ preventScroll: true });
+  // Re-rendering removes the focused control; keep focus inside the dialog so its keys keep working.
+  else if (!reviewer.contains(document.activeElement)) moveFocus($('#review-close'), { preventScroll: true });
+}
+// Saves the whole review file. `record` null removes the decision. On failure nothing changes and the reason is shown.
+async function saveReview(id, record, { advance = false } = {}) {
+  if (reviewSaving || !reviewWritable) return;
+  reviewSaving = true;
+  const next = { ...findingsReview };
+  if (record) next[id] = record; else delete next[id];
+  try {
+    const response = await fetch(reviewURL, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(next) });
+    if (!response.ok) throw new Error((await response.text()).slice(0, 200) || 'The preview could not save the review.');
+    findingsReview = next; reviewMode = 'view';
+    if (advance) {
+      const items = reviewedItems(), from = items.findIndex(item => item.id === id);
+      const upcoming = [...items.slice(from + 1), ...items.slice(0, from)].find(item => item.decision === 'unreviewed');
+      if (upcoming) reviewId = upcoming.id;
+    }
+    renderReviewer();
+  } catch (error) {
+    const message = $('#review-error');
+    if (message) message.textContent = `Not saved. ${error instanceof TypeError ? 'Is the local preview still running?' : error.message}`;
+  } finally { reviewSaving = false; }
+}
+function reviewAct(name) {
+  const item = reviewedItems().find(entry => entry.id === reviewId);
+  if (!item || reviewSaving) return;
+  const kept = Object.hasOwn(findingsReview, item.id) ? findingsReview[item.id] : null, edits = item.edited ? kept.edits : null;
+  if (name === 'edit' || name === 'reject' || name === 'cancel') { reviewMode = name === 'cancel' ? 'view' : name; renderReviewer(); }
+  else if (name === 'accept') saveReview(item.id, { decision: 'accepted', ...(edits ? { edits } : {}), reviewedOn: reviewDate() }, { advance: true });
+  else if (name === 'undo') saveReview(item.id, null);
+  else if (name === 'restore') saveReview(item.id, { ...kept, edits: undefined });
+  else if (name === 'save-edit') {
+    const values = { severity: $('#review-severity').value, title: $('#review-title-input').value, problem: $('#review-problem').value, recommendation: $('#review-recommendation').value };
+    const changed = {};
+    for (const field of reviewFields) { const value = values[field].trim(); if (value && value !== item.draft[field]) changed[field] = value; }
+    saveReview(item.id, { decision: 'accepted', ...(Object.keys(changed).length ? { edits: changed } : {}), reviewedOn: reviewDate() }, { advance: true });
+  } else if (name === 'save-reject') {
+    const reason = $('#review-reason').value.trim();
+    saveReview(item.id, { decision: 'rejected', ...(edits ? { edits } : {}), ...(reason ? { reason } : {}), reviewedOn: reviewDate() }, { advance: true });
+  }
+}
+function openReviewer(id) {
+  const items = reviewedItems();
+  if (!reviewWritable || !items.length) return;
+  reviewId = (items.find(item => item.id === id) || items.find(item => item.decision === 'unreviewed') || items[0]).id;
+  reviewMode = 'view';
+  if (!reviewer.open) {
+    reviewOpener = document.activeElement;
+    setStateStylesheets(true);
+    reviewer.showModal();
+    document.body.style.overflow = 'hidden';
+  }
+  renderReviewer();
+  moveFocus($('#review-close'), { preventScroll: true });
+}
+function moveReviewer(direction) {
+  const items = reviewedItems(), target = items[items.findIndex(item => item.id === reviewId) + direction];
+  if (!target || reviewSaving) return;
+  reviewId = target.id; reviewMode = 'view'; renderReviewer();
+}
+reviewer.addEventListener('close', () => {
+  setStateStylesheets(false);
+  document.body.style.overflow = '';
+  renderView();
+  const opener = reviewOpener?.isConnected ? reviewOpener : $('[data-review=""]');
+  if (opener) moveFocus(opener, { preventScroll: true });
+  reviewOpener = null;
+});
+// Esc leaves an open edit or reject form first, then closes the review.
+reviewer.addEventListener('cancel', event => { if (reviewMode !== 'view') { event.preventDefault(); reviewAct('cancel'); } });
+reviewer.addEventListener('keydown', event => {
+  if (event.altKey || event.ctrlKey || event.metaKey || reviewMode !== 'view' || event.target.closest('input, textarea, select')) return;
+  const key = event.key.toLowerCase();
+  if (key === 'arrowleft') { event.preventDefault(); moveReviewer(-1); }
+  else if (key === 'arrowright') { event.preventDefault(); moveReviewer(1); }
+  else if (key === 'e') { event.preventDefault(); reviewAct('edit'); }
+  else if ((key === 'a' || key === 'r') && reviewedItems().find(item => item.id === reviewId)?.decision === 'unreviewed') { event.preventDefault(); reviewAct(key === 'a' ? 'accept' : 'reject'); }
+});
+reviewer.addEventListener('submit', event => { event.preventDefault(); reviewAct(event.target.id === 'review-edit' ? 'save-edit' : 'save-reject'); });
+reviewer.addEventListener('click', event => {
+  const target = event.target.closest('[data-review-act],[data-review-goto]');
+  if (!target) return;
+  if (target.dataset.reviewAct) reviewAct(target.dataset.reviewAct);
+  else if (!reviewSaving) { reviewId = target.dataset.reviewGoto; reviewMode = 'view'; renderReviewer(); }
+});
+$('#review-previous').addEventListener('click', () => moveReviewer(-1));
+$('#review-next').addEventListener('click', () => moveReviewer(1));
+$('#review-close').addEventListener('click', () => reviewer.close());
+
 const mobileReview = matchMedia('(max-width: 760px), (max-width: 960px) and (pointer: coarse)');
 function syncReviewPanels() {
   const details = mobileReview.matches && dialog.dataset.details === 'true';
@@ -1497,7 +1679,7 @@ document.addEventListener('keydown',event=>{
   if (frame && ['Enter',' '].includes(event.key)) { event.preventDefault(); frame.click(); }
 });
 document.addEventListener('click',event=>{
-  const target = event.target.closest('[data-open-card],[data-view],[data-board],[data-state-card],[data-present],[data-map-flow],[data-map-journey]');
+  const target = event.target.closest('[data-open-card],[data-view],[data-board],[data-state-card],[data-present],[data-review],[data-map-flow],[data-map-journey]');
   if (!target) return;
   if (target.dataset.mapFlow !== undefined || target.dataset.mapJourney !== undefined) {
     const inBranches = Boolean(target.closest('.graph-branches'));
@@ -1510,9 +1692,11 @@ document.addEventListener('click',event=>{
   }
   else if (target.dataset.stateCard) {
     if (presenter.open) { presentOpener = null; presenter.close(); }
+    if (reviewer.open) { reviewOpener = null; reviewer.close(); }
     openStateCard(target.dataset.stateCard, target.dataset.card).catch(showError);
   }
   else if (target.dataset.present !== undefined) openPresenter(Number(target.dataset.present));
+  else if (target.dataset.review !== undefined) openReviewer(target.dataset.review);
   else if (target.dataset.openCard) openCardFromElement(target);
   else if (target.dataset.view) setView(target.dataset.view);
   else if (target.dataset.board) {

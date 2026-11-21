@@ -100,6 +100,16 @@ export default {
 
 The Findings view appears once items exist. **Present** walks through findings one at a time with evidence and proposal side by side. Inside a prototype, Existing / Future jumps to the paired card (first evidence and first proposal card of a finding, or a card's `compare`).
 
+### Reviewing findings
+
+Drafted findings are not the audit until a person has checked each against its evidence. In the local preview (`npm run dev`), **Review** in the Findings view opens one finding at a time beside every evidence screen it cites, with three questions: can I see this in the evidence, is it a user problem rather than a taste call, and is the recommendation specific enough to draw?
+
+- **Accept** (A), **Edit** (E) or **Reject** (R); arrows move between findings. Edit changes severity, title, problem and recommendation, then accepts. Reject takes an optional reason.
+- Decisions save to `apps/findings-review.json`, keyed by finding id: `{ decision: 'accepted' | 'rejected', edits?, reason?, reviewedOn? }`. The Studio lays this file over `apps/findings.js` when it loads, so the draft stays intact and an edit can be restored or a decision undone. Commit it with the audit.
+- While a review is under way, the status pill shows its count ("4 of 12 reviewed"), each finding shows its state, and each opportunity shows how many of its findings are accepted. Rejected findings stay listed for the reviewer, struck through and unnumbered, and are left out of Present, journey counts and Existing / Future pairing.
+- Saving is the preview's only write: one fixed file per findings module, from the loopback preview only. `npm run dev:phone` shows a saved review read-only.
+- Once a review has any decision, exports and shared links carry accepted findings only (see [SHARING.md](SHARING.md)). `npm run check` rejects a malformed review or one that names a finding that no longer exists.
+
 **Overview order**: intro (optional `about` block and the overview header), then the journeys table (screens and findings per journey, "Not captured yet" for empty ones), then "Early directions (not yet validated)" listing opportunities when findings exist, then the hypotheses and reference.
 
 ## 6. Future, export, share
