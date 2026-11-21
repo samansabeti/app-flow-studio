@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 
 export const STUDIO_VERSION = '1.3.0';
 export const STATIC_CORE = ['index.html', 'studio.js', 'studio.css', 'app.css', 'ui.js'];
-export const TEMPLATE_FILES = ['existing.js', 'future.js', 'existing.css', 'future.css', 'findings.js', 'design-system.js'];
+export const TEMPLATE_FILES = ['existing.js', 'future.js', 'existing.css', 'future.css', 'findings.js', 'design-system.js', 'kit.js', 'kit.css'];
 export const INSTANCE_CORE = [...STATIC_CORE, 'server.mjs', 'scripts/check.mjs',
   'scripts/create-instance.mjs', 'scripts/create-app.mjs', 'scripts/export-share.mjs', 'scripts/share.mjs', 'scripts/draft-existing.mjs', 'scripts/scan-fonts.mjs',
   'scripts/captures-inbox.mjs', 'scripts/import-captures.mjs', 'scripts/add-captures.mjs', 'scripts/extract-frames.mjs', 'scripts/extract-frames.swift',

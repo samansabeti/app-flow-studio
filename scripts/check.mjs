@@ -456,6 +456,37 @@ for (const entry of registry.apps) {
     for (const item of ds.spacing?.scale || []) assert.ok(typeof item.value === 'number', 'spacing values must be numbers');
     for (const item of ds.radii || []) assert.ok(typeof item.name === 'string' && typeof item.value === 'number', 'radii need a name and number');
     for (const item of ds.components || []) { assert.ok(typeof item.name === 'string', 'components need a name'); evidence(`component ${item.name}`, item.evidence); }
+    // Component kit: only captured components, every one with evidence, every measurement well-formed.
+    if (ds.kit !== undefined) {
+      const tokenNames = ['background', 'surface', 'ink', 'muted', 'border', 'accent', 'accentSoft', 'onAccent', 'danger'];
+      const size = v => typeof v === 'number' && Number.isFinite(v) && v >= 0, weight = v => Number.isInteger(v) && v >= 100 && v <= 900;
+      const color = v => tokenNames.includes(v) || hex(v), bool = v => typeof v === 'boolean', oneOf = (...list) => v => list.includes(v);
+      const fields = {
+        navBar: { height: size, paddingX: size, titleSize: size, titleWeight: weight, titleAlign: oneOf('center', 'left'), background: color, border: bool },
+        tabBar: { height: size, labelSize: size, labelWeight: weight, iconSize: size, background: color, border: bool, active: color, inactive: color },
+        button: { height: size, radius: size, fontSize: size, fontWeight: weight, paddingX: size, secondary: oneOf('outline', 'tint', 'plain') },
+        row: { minHeight: size, paddingX: size, titleSize: size, titleWeight: weight, subtitleSize: size, background: color, divider: oneOf('inset', 'full', 'none'), chevron: bool },
+        card: { radius: size, padding: size, background: color, border: bool, shadow: v => typeof v === 'string' && /^[\w\s.,()%#/-]+$/.test(v) },
+        sheet: { radius: size, padding: size, background: color, grabber: bool, titleSize: size, titleWeight: weight },
+      };
+      assert.ok(ds.kit && typeof ds.kit === 'object' && !Array.isArray(ds.kit), 'kit must be an object');
+      for (const [name, item] of Object.entries(ds.kit)) {
+        if (name === 'icons') {
+          for (const [icon, crop] of Object.entries(item || {})) evidence(`kit icon ${icon}`, [crop]);
+          continue;
+        }
+        assert.ok(fields[name], `kit has no component named ${name} (use ${Object.keys(fields).join(', ')}, icons)`);
+        assert.ok(Array.isArray(item?.evidence) && item.evidence.length, `kit ${name} needs at least one evidence crop; leave out components that were not captured`);
+        evidence(`kit ${name}`, item.evidence);
+        for (const [field, value] of Object.entries(item)) {
+          if (field === 'evidence') continue;
+          if (field === 'note') { assert.ok(typeof value === 'string', `kit ${name} note must be text`); continue; }
+          assert.ok(fields[name][field], `kit ${name} has no measurement named ${field}`);
+          assert.ok(fields[name][field](value), `kit ${name}.${field} has an invalid value: ${JSON.stringify(value)}`);
+        }
+      }
+      if (ds.kitState !== undefined && entry.variants) assert.ok(entry.variants.some(variant => variant.id === ds.kitState), `unknown kit design state ${ds.kitState}`);
+    }
     evidence('iconography', ds.iconography?.evidence);
     for (const font of ds.fonts || []) {
       assert.ok(typeof font.family === 'string' && /^\.\/apps\/[^"'()]+\.(woff2?|ttf|otf)$/.test(font.src || ''), `font ${font?.family} needs a family and a ./apps/ font file`);

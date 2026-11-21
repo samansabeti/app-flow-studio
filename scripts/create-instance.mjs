@@ -80,7 +80,7 @@ Requested local edits can proceed without separate plan or diff approval; teachi
 1. Draft Existing from screenshots: \`npm run draft-existing -- <folder>\`, then ask Claude to complete the draft: order and name the screens, map every visible control so Existing clicks like production, add Flow map journeys, and infer the design system in apps/design-system.js (its tokens feed Future).
    Or keep captures in one inbox folder outside this project: set \`"capturesDir": "../captures"\` in instance.json (or the CAPTURES_DIR environment variable), name its subfolders NN-<journey id> in the order of apps/findings.js journeys (01-signing-up, 02-first-task), and run \`npm run import-captures\`; later runs add only new shots, marked "NEW, needs completing". macOS only: \`npm run extract-frames\` turns screen recordings in the inbox's recordings/ folder into still frames, and \`npm run blur-regions\` redacts private details irreversibly.
 2. Write findings in apps/findings.js: severity, problem, recommendation, and the Existing and Future card IDs they connect. They appear in the Findings view and in Present mode.
-3. Build the Future proposal in apps/future.js. Inside a prototype, Existing / Future jumps between paired cards.
+3. Build the Future proposal in apps/future.js from the component kit (apps/kit.js), after comparing each rebuilt component with its captured crop in the Design library. Inside a prototype, Existing / Future jumps between paired cards.
 4. Frame the review with \`studio.about\` in config.js, then publish with \`npm run share -- --project <vercel-project> [--password]\` once publication is authorized. Without --password the link is public.
 
 ## Local static export

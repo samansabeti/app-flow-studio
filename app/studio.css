@@ -801,6 +801,18 @@ kbd { padding: 2px 6px; border: 0; border-radius: 5px; background: var(--soft); 
 .ds-component dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px 20px; margin: 14px 0 0; }
 .ds-component dd { margin: 2px 0 0; font-size: 12.5px; }
 .ds-variants { margin-top: 10px; }
+.ds-kit { padding: 20px 0; border-bottom: 1px solid var(--line); }
+.ds-kit h3 { margin-bottom: 12px; font-size: 14px; font-weight: 600; }
+.ds-kit-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 340px)); gap: 24px; align-items: start; }
+.ds-kit figure { min-width: 0; margin: 0; }
+.ds-kit figcaption { margin-bottom: 8px; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; }
+.ds-kit figcaption span { margin-left: 4px; padding: 1px 6px; border-radius: 999px; background: var(--soft); font-weight: 500; letter-spacing: 0; text-transform: none; }
+.ds-kit-sample.phone { min-height: 0; padding: 0; border-radius: 8px; box-shadow: 0 0 0 1px var(--line); }
+.ds-kit-empty, .ds-kit > p { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.ds-kit > p { max-width: 72ch; margin-top: 12px; }
+.ds-kit dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px 20px; margin: 14px 0 0; }
+.ds-kit dt { color: var(--muted); font-size: 11px; }
+.ds-kit dd { margin: 2px 0 0; font-size: 12.5px; }
 .ds-quotes { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 18px; }
 .ds-quotes blockquote { margin: 0; padding: 12px 14px; border-radius: 10px; background: var(--soft); font-size: 13px; line-height: 1.5; }
 .ds-tokens { border-collapse: collapse; font-size: 12px; }
@@ -825,6 +837,7 @@ kbd { padding: 2px 6px; border: 0; border-radius: 5px; background: var(--soft); 
 @media (max-width: 900px) {
   .ds-type { grid-template-columns: 1fr; }
   .ds-component { grid-template-columns: 1fr; }
+  .ds-kit-pair { grid-template-columns: 1fr; }
   .ds-space { grid-template-columns: 80px 48px 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { .ds-spinner, .ds-skeleton div { animation: none; } }

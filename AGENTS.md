@@ -23,6 +23,7 @@ Requested local edits are authorized: implement, check the affected behavior, re
 
 - Distinguish screenshot evidence from linked transitions. A control with an uncaptured outcome explains the limit (`note`); never fabricate production behavior, screens, or findings. Composites join unedited captured pixels only.
 - Future redesigns go in a separate design-state module, labelled as drafts; Existing screenshots stay intact. Proposed copy is not a product claim.
+- The Future component kit (`kit.js`, design-system `kit`) holds only components with evidence crops; icons are unedited crops or a visible placeholder, never drawn.
 - Reference apps expose only appearances their evidence supports. Preserve source proportions and native chrome.
 
 ## Code rules

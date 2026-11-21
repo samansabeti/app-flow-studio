@@ -76,6 +76,25 @@ With `to`, optionally: `lateTo` (destination once `state.late` is set, when the 
 
 When no single capture shows a needed state (a sheet over a different screen), join unedited captured pixels from two captures into one image. Put `composite` in its route and file name; the card gets a Composite badge and image alt text says so. Never paint, retouch, or invent content.
 
+## Component kit
+
+`apps/kit.js` and `apps/kit.css` rebuild the client's own components for Future screens from the `kit` section of `apps/design-system.js` (schema in that file's header). `createKit(designSystem, existing)` returns pure helpers:
+
+| Helper | Options |
+| --- | --- |
+| `navBar` | `title`, `back` (`true` or `{ label, action, icon }`), `trailing` (`{ label, action, icon }`) |
+| `tabBar` | `items: [{ label, action, icon, activeIcon, active }]` |
+| `button` | `label`, `action`, `variant` (`primary`, `secondary`, `destructive`), `disabled`, `submit` |
+| `list`, `row` | rows of `{ title, subtitle, value, icon, action, chevron }`; a row with an `action` is one button |
+| `card` | `title`, `body`, `footer` |
+| `sheet` | `title`, `body`, `actions`, returned from an `OVERLAYS` renderer |
+
+Put `style="${kit.vars()}"` on each screen root so the measurements apply. Text options are escaped by the kit; `body`, `footer`, and `actions` are markup you escape yourself. Anything not measured falls back to a neutral default.
+
+- **Evidence first.** `kit` lists only components that were captured, each with at least one evidence crop; `npm run check` rejects an entry without one, an unknown measurement, or a malformed value.
+- **Icons are crops.** `kit.icons` maps a name to `{ card, box }`, an unedited crop of a captured screen, one entry per captured appearance (`home`, `homeActive`). An icon that was never captured renders as a dashed placeholder; bar controls fall back to their text label. Never draw one.
+- **Review before use.** A Future `library.components` entry with `kit: 'navBar'` (or `tabBar`, `button`, `row`, `card`, `sheet`) is shown in the Design library's Component kit section beside its evidence crop, at the same scale, labelled as inferred. Compare the pair and correct the measurements before building screens on it.
+
 ## Flow stages
 
 `FLOW_STAGES = { [journeyId]: [{ label, cards: [cardId, …] }] }` draws that journey on its own as a left-to-right tree, one column per stage, its paths merged. A screen sits below the screen in the same stage that leads to it; a screen in no stage takes the stage of the screen leading to it. Journeys without stages stay on the shared map. `npm run check` requires each staged card to exist, be on one of that journey's `FLOWS`, and appear once.

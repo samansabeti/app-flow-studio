@@ -16,6 +16,7 @@ The parent folder must exist and the destination must be new; the generator neve
 - `apps/future.js`: a proposed-journey starting point for Future concepts.
 - `apps/findings.js`: no findings, status "Work in progress", and three example journeys (`signing-up`, `first-task`, `managing-settings`) to rename or replace.
 - `apps/design-system.js`: status `pending` until the design system is inferred.
+- `apps/kit.js`, `apps/kit.css`: the component kit Future screens are composed from.
 
 Empty journeys show as "Not captured yet" in Screens, the Flow map, and Overview. To import an existing app instead, add `--from <folder> --manifest <manifest.json>`; the manifest must list its registry entry and every module, stylesheet, image, and font. Use [KICKOFF.md](KICKOFF.md) for the brief.
 
@@ -72,7 +73,7 @@ Ask Claude (or work by hand) to complete the draft from the images alone:
 3. Add a hotspot for every visible control: `to` a captured screen, `back`, or a `note` for an uncaptured outcome (full field list in [APP-MODULES.md](APP-MODULES.md#screenshot-based-existing-modules)).
 4. Fix `JOURNEYS` to match; optionally add `STAGES` for a staged Flow map.
 5. Draw each hotspot box onto its screenshot and correct any that miss their control.
-6. Infer the design system into `apps/design-system.js` (schema in its header): sample color hex values from pixels, measure type in points, confirm families with `npm run scan-fonts -- <App.app|.ipa> --url <web app>` (bundled fonts are proof; otherwise Apple system fonts), cite each value with an evidence crop `{ card, box }`, fill `tokens`, then set status `ready`. The Design library shows a loading state until then, and Future inherits the tokens.
+6. Infer the design system into `apps/design-system.js` (schema in its header): sample color hex values from pixels, measure type in points, confirm families with `npm run scan-fonts -- <App.app|.ipa> --url <web app>` (bundled fonts are proof; otherwise Apple system fonts), cite each value with an evidence crop `{ card, box }`, fill `tokens`, measure each captured component into `kit` (nav bar, tab bar, button, row, card, sheet, and icon crops), then set status `ready`. The Design library shows a loading state until then; Future inherits the tokens and the [component kit](APP-MODULES.md#component-kit). Open the Component kit section and compare each rebuilt component with its captured crop before building on it.
 
 Keep this pass objective. Findings come next.
 
@@ -104,4 +105,4 @@ The Findings view appears once items exist. **Present** walks through findings o
 
 ## 6. Future, export, share
 
-Build proposed screens in `apps/future.js` as editable drafts, in the client's own tokens. Every control works or explains its limit. Then follow [SHARING.md](SHARING.md): `npm run export-share` for a local bundle, and `npm run share` only once the audience is authorized.
+Build proposed screens in `apps/future.js` as editable drafts, composed from the component kit (`apps/kit.js`) in the client's own tokens. Every control works or explains its limit. Then follow [SHARING.md](SHARING.md): `npm run export-share` for a local bundle, and `npm run share` only once the audience is authorized.
