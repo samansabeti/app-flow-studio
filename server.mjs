@@ -1,9 +1,11 @@
 import http from 'node:http';
-import { readFile, realpath, stat } from 'node:fs/promises';
+import { lstat, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { networkInterfaces } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { projectPaths } from './scripts/project-paths.mjs';
+import { reviewFile, validateReview, json } from './scripts/instance-files.mjs';
 
 const { projectRoot, browserRoot: root } = await projectPaths();
 const registry = (await import(pathToFileURL(path.join(root, 'config.js')))).default;
@@ -100,6 +102,10 @@ if (phoneMode) {
       ...(studio ? { studio } : {})
     }));
     phoneFiles = new Set([...STATIC_CORE, 'config.js', ...content]);
+    // A saved findings review is shown on the phone, read-only, so it matches the computer's preview.
+    for (const app of apps) {
+      if (app.findings && await exists(path.join(root, reviewFile(app.findings)))) phoneFiles.add(reviewFile(app.findings));
+    }
     phoneRead = safeRead;
     ({ qrSvg } = await import('./scripts/qr-code.mjs'));
   } catch (error) {
@@ -138,6 +144,39 @@ const types = {
   '.md': 'text/plain; charset=utf-8'
 };
 const withinRoot = candidate => candidate === root || candidate.startsWith(`${root}${path.sep}`);
+
+// Findings review is the preview's only write: one fixed file per registered findings module, loopback only, never in
+// phone mode. Anything else stays read-only.
+const reviewPaths = new Set((registry.apps || []).filter(app => typeof app.findings === 'string' && /^\.\/apps\/[^/]+\.m?js$/.test(app.findings))
+  .map(app => `/${reviewFile(app.findings)}`));
+async function reviewRoute(req, res, pathname, reply, origins) {
+  const target = path.join(root, pathname.slice(1));
+  if (!withinRoot(await realpath(path.dirname(target)))) return reply(404, 'Not found.');
+  const info = await lstat(target).catch(error => { if (error.code === 'ENOENT') return null; throw error; });
+  if (info && !info.isFile()) return reply(404, 'Not found.');
+  if (req.method !== 'PUT') {
+    const content = info ? await readFile(target) : Buffer.from('{}\n');
+    res.writeHead(200, { 'Content-Type': types['.json'], 'Content-Length': content.byteLength, 'X-Findings-Review': 'writable' });
+    return res.end(req.method === 'HEAD' ? undefined : content);
+  }
+  // Only this preview's own page may save: other sites cannot send a same-origin JSON PUT.
+  if ((req.headers.origin && !origins.includes(req.headers.origin)) || (req.headers['sec-fetch-site'] && req.headers['sec-fetch-site'] !== 'same-origin')
+    || !/^application\/json\b/i.test(req.headers['content-type'] || '')) return reply(403, 'Reviews can only be saved from this preview.');
+  const chunks = []; let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > 512 * 1024) return reply(413, 'Review is too large.');
+    chunks.push(chunk);
+  }
+  let review;
+  try { review = validateReview(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
+  catch (error) { return reply(400, error instanceof SyntaxError ? 'Review must be JSON.' : error.message); }
+  const temp = `${target}.${randomUUID()}.tmp`;
+  try { await writeFile(temp, json(review), { flag: 'wx' }); await rename(temp, target); }
+  finally { await rm(temp, { force: true }); }
+  res.writeHead(204);
+  res.end();
+}
 const server = http.createServer(async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -150,15 +189,15 @@ const server = http.createServer(async (req, res) => {
   const authorities = allowedHosts.map(name => `${name}:${server.address().port}`);
   if (server.address().port === 80) authorities.push(...allowedHosts);
   if (!authorities.includes(req.headers.host?.toLowerCase())) return reply(403, 'Unrecognized preview host.');
-  if (req.method !== 'GET' && req.method !== 'HEAD') {
-    res.setHeader('Allow', 'GET, HEAD');
-    return reply(405, 'Method not allowed.');
-  }
+  const readOnly = () => { res.setHeader('Allow', 'GET, HEAD'); return reply(405, 'Method not allowed.'); };
+  if (!['GET', 'HEAD'].includes(req.method) && (phoneMode || req.method !== 'PUT')) return readOnly();
   try {
     if (!req.url.startsWith('/') || req.url.startsWith('//')) return reply(400, 'Invalid request.');
     const pathname = decodeURIComponent(req.url.split('?')[0]);
     if (pathname.includes('\0') || pathname.includes('\\')) return reply(400, 'Invalid path.');
     if (pathname.split('/').some(part => part.startsWith('.'))) return reply(404, 'Not found.');
+    if (!phoneMode && reviewPaths.has(pathname)) return await reviewRoute(req, res, pathname, reply, authorities.map(authority => `http://${authority}`));
+    if (req.method === 'PUT') return readOnly();
     if (phoneMode && ['/phone', '/phone/', '/phone/qr.svg'].includes(pathname)) {
       const isQr = pathname === '/phone/qr.svg';
       const content = isQr ? qrSvg(previewUrl()) : phonePage();

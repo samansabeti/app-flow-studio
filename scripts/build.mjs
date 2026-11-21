@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url';
 import { projectPaths } from './project-paths.mjs';
 import { STATIC_CORE, checkLocalDependencies, configText, digest, existingPath, exists, fail,
   isShareContent, json, label, parseConfig, safeRead, treeHashes, validateManifest,
-  validateStudioConfig, writeNewTree } from './instance-files.mjs';
+  validateStudioConfig, writeNewTree, shareReviewedFindings } from './instance-files.mjs';
 
 // Build a browser-only snapshot. Never recursively copy the repository or app/.
 export async function browserFiles(directory) {
@@ -30,8 +30,9 @@ export async function browserFiles(directory) {
     apps,
     ...(studio ? { studio } : {}),
   })));
+  const reviewNotes = await shareReviewedFindings(browserRoot, apps, files);
   checkLocalDependencies(files);
-  return { projectRoot, files };
+  return { projectRoot, files, reviewNotes };
 }
 
 function sameHashes(actual, expected) {
@@ -41,7 +42,7 @@ function sameHashes(actual, expected) {
 
 export async function buildStudio(directory) {
   // Read and validate every input before touching existing output.
-  const { projectRoot, files } = await browserFiles(directory);
+  const { projectRoot, files, reviewNotes } = await browserFiles(directory);
   const hashes = Object.fromEntries([...files].map(([file, bytes]) => [file, digest(bytes)]));
   const output = path.join(projectRoot, 'dist');
   const state = path.join(projectRoot, '.app-flow-exports');
@@ -76,7 +77,7 @@ export async function buildStudio(directory) {
     await rename(recordTemp, recordPath);
     finished = true;
     if (backedUp) await rm(backup, { recursive: true });
-    return { output, files: Object.keys(hashes).sort() };
+    return { output, files: Object.keys(hashes).sort(), reviewNotes };
   } catch (error) {
     if (!finished && installed) await rm(output, { recursive: true, force: true });
     if (!finished && backedUp) await rename(backup, output);
@@ -93,6 +94,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
   try {
     if (process.argv.length > 2) fail('Usage: npm run build');
     const result = await buildStudio();
+    for (const note of result.reviewNotes) console.log(note);
     console.log(`Built ${result.files.length} browser files in ${result.output}.\nLocal output only; nothing was uploaded or deployed.`);
   } catch (error) {
     console.error(`Could not build: ${error.message}`);

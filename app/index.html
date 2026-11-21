@@ -55,5 +55,11 @@
     <div class="present-hint"><kbd>←</kbd><kbd>→</kbd> findings <span>·</span> select a screen to try it <span>·</span> <kbd>Esc</kbd> close</div>
     <div id="present-announcement" class="sr-only" aria-live="polite"></div>
   </dialog>
+  <dialog id="review" aria-labelledby="review-title">
+    <div class="present-bar"><button id="review-close" class="text-button">← Done</button><span id="review-position"></span><div id="review-dots" class="review-dots"></div><div class="present-paging"><button id="review-previous" class="icon-button" aria-label="Previous finding">←</button><button id="review-next" class="icon-button" aria-label="Next finding">→</button></div></div>
+    <div id="review-body" class="present-body"></div>
+    <div class="present-hint"><kbd>A</kbd> accept <span>·</span> <kbd>E</kbd> edit <span>·</span> <kbd>R</kbd> reject <span>·</span> <kbd>←</kbd><kbd>→</kbd> findings <span>·</span> <kbd>Esc</kbd> close</div>
+    <div id="review-announcement" class="sr-only" aria-live="polite"></div>
+  </dialog>
 </body>
 </html>

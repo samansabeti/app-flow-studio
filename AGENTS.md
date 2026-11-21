@@ -5,7 +5,7 @@ Reusable product for UX audits of existing apps: Existing screens mapped from sc
 ## Current state
 
 - Developed on localhost only (`npm run dev`, http://127.0.0.1:8002). Not deployed: no hosting is connected to this repo. GitHub `samansabeti/app-flow-studio` is public (template repository).
-- The built-in demo is the fictional, code-drawn Daylight app plus a Blank app. A screenshot-based demo instance is planned from screenshots Sam will supply; until then the client template starts empty with three example journeys.
+- The built-in demo is the fictional, code-drawn Daylight app (with invented example findings to try Review on) plus a Blank app. A screenshot-based demo instance is planned from screenshots Sam will supply; until then the client template starts empty with three example journeys.
 - Ingest is production screenshots (captures inbox → `npm run import-captures`). Screen-recording extraction exists but is secondary.
 - Audience: recruiters reviewing Sam's work and anyone (including non-coders) using it for their own audits. MIT licensed. README is the pitch; `docs/GETTING-STARTED.md` is the no-coding-assumed path. Keep both accurate when commands change. GitHub Actions (`.github/workflows/check.yml`) runs check, check:build and build.
 - History before Nov 18 was imported from the private archive repo with client names, local paths and co-author trailers removed. Never reintroduce them.
@@ -17,11 +17,12 @@ Requested local edits are authorized: implement, check the affected behavior, re
 - Treat this repository as public (it will be published). Use only invented, neutral examples (fictional apps, people, data). Never commit client names, screenshots, identifiers, findings, or paths to private material, here or in templates. Client work lives in a generated instance outside this repo.
 - Keep everything local. Pushing to GitHub, deploying, publishing, `npm run share`, connecting hosting or accounts, sending invitations, and real network operations all need explicit authorization of target and audience. Export (`npm run export-share`) and build are local and are not publishing.
 - Captures inboxes, recordings, and frames stay outside every project folder. Never put secrets, `.env` files, private notes, or chat exports in the repo. Public output is only the explicit browser inventory in `dist/`; never copy the repository wholesale.
-- `npm run dev` stays loopback-only; LAN access only through explicit `npm run dev:phone`.
+- `npm run dev` stays loopback-only; LAN access only through explicit `npm run dev:phone`. The preview's only write is the findings review file (`<findings>-review.json`, same-origin PUT, never in phone mode); add no other write routes without asking.
 
 ## Fidelity
 
 - Distinguish screenshot evidence from linked transitions. A control with an uncaptured outcome explains the limit (`note`); never fabricate production behavior, screens, or findings. Composites join unedited captured pixels only.
+- Drafted findings are unreviewed until a person accepts them in Review. Never write or edit a findings review file on someone's behalf, and never present unreviewed findings as reviewed. Exports carry accepted findings only once a review exists.
 - Future redesigns go in a separate design-state module, labelled as drafts; Existing screenshots stay intact. Proposed copy is not a product claim.
 - Reference apps expose only appearances their evidence supports. Preserve source proportions and native chrome.
 

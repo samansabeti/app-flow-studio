@@ -5,13 +5,14 @@ export default {
     "defaultView": "overview",
     "sidebar": { "collapsible": true }
   },
-  "previewFiles": ["apps/daylight.js", "apps/blank.js"],
+  "previewFiles": ["apps/daylight.js", "apps/daylight-findings.js", "apps/blank.js"],
   "defaultApp": "daylight",
   "apps": [
     {
       "id": "daylight",
       "name": "Daylight",
-      "module": "./apps/daylight.js"
+      "module": "./apps/daylight.js",
+      "findings": "./apps/daylight-findings.js"
     },
     {
       "id": "blank",

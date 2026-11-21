@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
-import { validateStudioConfig, validateManifest, safeRead, STATIC_CORE, checkLocalDependencies, contentFile, isShareContent } from './instance-files.mjs';
+import { validateStudioConfig, validateManifest, safeRead, STATIC_CORE, checkLocalDependencies, contentFile, isShareContent, reviewFile, validateReview } from './instance-files.mjs';
 import { projectPaths } from './project-paths.mjs';
 
 // Contract checks for the app data, not a substitute for trying the prototype.
@@ -403,6 +403,15 @@ for (const entry of registry.apps) {
       if (record.summary !== undefined) assert.equal(typeof record.summary, 'string', `opportunity ${record.id} summary must be text`);
     }
   });
+  // A saved review must be well formed and name findings that still exist, so no decision is silently dropped.
+  const reviewPath = path.join(browserRoot, reviewFile(entry.findings));
+  if (existsSync(reviewPath)) {
+    check(`${entry.id} findings review`, () => {
+      const review = validateReview(JSON.parse(readFileSync(reviewPath, 'utf8')));
+      const ids = new Set((Array.isArray(data?.items) ? data.items : []).map(item => item?.id));
+      for (const id of Object.keys(review)) assert.ok(ids.has(id), `${reviewFile(entry.findings)} reviews unknown finding ${id}`);
+    });
+  }
   const registryIds = key => new Set(Array.isArray(data?.[key]) ? data[key].map(record => record?.id) : []);
   const journeyIds = registryIds('journeys'), opportunityIds = registryIds('opportunities');
   for (const item of Array.isArray(data?.items) ? data.items : []) {

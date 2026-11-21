@@ -20,3 +20,5 @@ secrets.*
 *.zip
 *.tar.gz
 .claude/worktrees/
+# Review decisions made while trying the demo stay local.
+app/apps/*-review.json

@@ -1,6 +1,8 @@
 import { lstat, readFile, readdir, realpath, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+import { pathToFileURL } from 'node:url';
+import { isDeepStrictEqual } from 'node:util';
 
 export const STUDIO_VERSION = '1.3.0';
 export const STATIC_CORE = ['index.html', 'studio.js', 'studio.css', 'app.css', 'ui.js'];
@@ -201,4 +203,71 @@ export async function treeHashes(root) {
   }
   await walk(root);
   return hashes;
+}
+
+// Findings review: a person's accept, edit or reject decisions, saved beside the findings module and laid over its draft.
+// apps/findings.js keeps the draft; apps/findings-review.json holds { [findingId]: { decision, edits?, reason?, reviewedOn? } }.
+export const reviewFile = findings => findings.replace(/^\.\//, '').replace(/\.m?js$/, '-review.json');
+const REVIEW_EDITS = { severity: 20, title: 300, problem: 4000, recommendation: 4000 };
+export function validateReview(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) fail('Findings review must be an object keyed by finding id.');
+  const text = (input, limit, name) => {
+    if (typeof input !== 'string' || !input.trim() || input.length > limit || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(input)) fail(`${name} must be 1–${limit} characters of text.`);
+    return input.trim();
+  };
+  const result = {};
+  for (const [id, record] of Object.entries(value)) {
+    if (!id || id.length > 120 || /[\x00-\x1f\x7f]/.test(id) || ['__proto__', 'constructor', 'prototype'].includes(id)) fail('Findings review has an invalid finding id.');
+    if (!record || typeof record !== 'object' || Array.isArray(record)) fail(`Review of ${id} must be an object.`);
+    for (const key of Object.keys(record)) if (!['decision', 'edits', 'reason', 'reviewedOn'].includes(key)) fail(`Review of ${id} has an unsupported field: ${key}`);
+    if (!['accepted', 'rejected'].includes(record.decision)) fail(`Review of ${id} needs decision "accepted" or "rejected".`);
+    const entry = { decision: record.decision };
+    if (record.edits !== undefined) {
+      if (!record.edits || typeof record.edits !== 'object' || Array.isArray(record.edits)) fail(`Review of ${id}: edits must be an object.`);
+      const edits = {};
+      for (const [field, edit] of Object.entries(record.edits)) {
+        if (!Object.hasOwn(REVIEW_EDITS, field)) fail(`Review of ${id} cannot edit ${field}.`);
+        edits[field] = text(edit, REVIEW_EDITS[field], `Review of ${id}: ${field}`);
+      }
+      if (edits.severity !== undefined && !['high', 'medium', 'low'].includes(edits.severity)) fail(`Review of ${id}: severity must be high, medium, or low.`);
+      if (Object.keys(edits).length) entry.edits = edits;
+    }
+    if (record.reason !== undefined && record.reason !== '') entry.reason = text(record.reason, 500, `Review of ${id}: reason`);
+    if (record.reviewedOn !== undefined) {
+      if (typeof record.reviewedOn !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(record.reviewedOn)) fail(`Review of ${id}: reviewedOn must be a YYYY-MM-DD date.`);
+      entry.reviewedOn = record.reviewedOn;
+    }
+    result[id] = entry;
+  }
+  return result;
+}
+// What a shared copy carries once a review exists: accepted findings with their edits, and the opportunities they belong to.
+export function applyReview(data, review) {
+  const items = (Array.isArray(data?.items) ? data.items : []).filter(item => review[item?.id]?.decision === 'accepted')
+    .map(item => ({ ...item, ...(review[item.id].edits || {}) }));
+  const used = new Set(items.map(item => item.opportunity));
+  return { ...data, ...(Array.isArray(data.opportunities) ? { opportunities: data.opportunities.filter(record => used.has(record?.id)) } : {}), items, reviewed: true };
+}
+// Replace each reviewed findings module in a browser bundle with its accepted findings. The review file itself, and every
+// unreviewed or rejected finding, stays out of the bundle. Findings without a review are copied unchanged.
+export async function shareReviewedFindings(browserRoot, apps, files) {
+  const notes = [];
+  for (const app of apps) {
+    if (typeof app.findings !== 'string') continue;
+    const file = app.findings.slice(2), sidecar = reviewFile(app.findings);
+    files.delete(sidecar);
+    if (!files.has(file) || !(await exists(path.join(browserRoot, sidecar)))) continue;
+    let review;
+    try { review = validateReview(JSON.parse((await safeRead(browserRoot, sidecar)).toString('utf8'))); }
+    catch (error) { fail(`${sidecar}: ${error.message}`); }
+    if (!Object.keys(review).length) continue;
+    const bytes = files.get(file);
+    const data = (await import(`${pathToFileURL(path.join(browserRoot, file)).href}?review=${digest(bytes).slice(0, 12)}`)).default;
+    if (!data || typeof data !== 'object' || !isDeepStrictEqual(JSON.parse(JSON.stringify(data)), data)) fail(`${file} must be plain data (text, numbers, lists) to share reviewed findings.`);
+    const shared = applyReview(data, review), total = Array.isArray(data.items) ? data.items.length : 0;
+    const rejected = (data.items || []).filter(item => review[item?.id]?.decision === 'rejected').length;
+    files.set(file, Buffer.from(`// Reviewed findings: accepted findings only.\nexport default ${JSON.stringify(shared, null, 2)};\n`));
+    notes.push(`${app.name}: ${shared.items.length} accepted of ${total} findings included; ${total - shared.items.length - rejected} unreviewed and ${rejected} rejected left out.`);
+  }
+  return notes;
 }

@@ -9,7 +9,7 @@ UX audits usually end up as slide decks: screenshots pasted out of order, findin
 ## What it does
 
 - **Maps the existing app.** Drop in screenshots grouped by journey (signing up, first task, settings…). They become click-through prototypes and a flow map. Every visible button either opens the screen it leads to or says its outcome wasn't captured.
-- **Ties findings to evidence.** Each finding cites the screens that prove it and is ranked by severity and grouped into opportunities. **Present** mode walks stakeholders through the findings one at a time.
+- **Ties findings to evidence.** Each finding cites the screens that prove it and is ranked by severity and grouped into opportunities. **Review** has you accept, edit or reject each drafted finding beside its evidence, and only accepted findings are shared. **Present** mode walks stakeholders through the findings one at a time.
 - **Puts the future beside the present.** Proposed screens sit next to the real ones, with an Existing / Future toggle on every view.
 - **Documents the design system.** A design library records the app's colors, type, and components, each backed by a crop of the screenshot it came from. Proposals reuse those tokens.
 
